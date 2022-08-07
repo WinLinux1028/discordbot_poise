@@ -1,0 +1,10 @@
+[
+    {
+        // BOT1(必須)
+        "token": "INPUT_TOKEN_HERE"
+    },
+    {
+        // BOTn(オプション)
+        "token": "INPUT_TOKEN_HERE"
+    }
+]
