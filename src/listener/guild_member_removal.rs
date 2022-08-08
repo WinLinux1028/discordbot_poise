@@ -11,21 +11,20 @@ pub async fn process(
     user: &serenity::User,
     _member: &Option<serenity::Member>,
 ) -> Result<(), Error> {
-    let guild = guild.to_partial_guild(ctx).await?;
-    let channel = match guild.system_channel_id {
-        Some(s) => s,
-        None => return Ok(()),
+    if let Some(guild) = guild.to_guild_cached(ctx) {
+        if let Some(channel) = guild.system_channel_id {
+            channel
+                .say(
+                    ctx,
+                    format!(
+                        "{}({}#{})が退出しました",
+                        user.mention(),
+                        &user.name,
+                        user.discriminator
+                    ),
+                )
+                .await?;
+        };
     };
-    channel
-        .say(
-            ctx,
-            format!(
-                "{}({}#{})が退出しました",
-                user.mention(),
-                &user.name,
-                user.discriminator
-            ),
-        )
-        .await?;
     Ok(())
 }

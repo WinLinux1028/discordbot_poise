@@ -1,12 +1,16 @@
 use crate::{Data, Error};
 use poise::serenity_prelude as serenity;
 
-pub async fn ready<'a>(
+pub async fn process<'a>(
     ctx: &'a serenity::Context,
     ready: &'a serenity::Ready,
     framework: &'a poise::Framework<Data, Error>,
     data: Data,
 ) -> Result<Data, Error> {
+    ctx.idle().await;
+
+    let _ = crate::globalchat::collect_webhooks(ctx, &data).await;
+
     ctx.set_presence(
         Some(serenity::Activity::streaming(
             "Made by Rust",

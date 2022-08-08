@@ -10,6 +10,7 @@ pub mod command;
 use command::*;
 
 mod command_check;
+mod globalchat;
 mod listener;
 mod on_error;
 mod ready;
@@ -54,7 +55,7 @@ async fn new_bot(data: Data) {
         .token(&data.token)
         .intents(serenity::GatewayIntents::all())
         .user_data_setup(|ctx, ready, framework| {
-            Box::pin(ready::ready(ctx, ready, framework, data))
+            Box::pin(ready::process(ctx, ready, framework, data))
         });
 
     framework.run_autosharded().await.unwrap();
