@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use tokio::{io::AsyncReadExt, sync::RwLock};
+
 use poise::serenity_prelude as serenity;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -5,10 +8,10 @@ pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 pub mod command;
 use command::*;
-use tokio::io::AsyncReadExt;
 
-mod error;
+mod command_check;
 mod listener;
+mod on_error;
 mod ready;
 
 #[tokio::main]
@@ -33,7 +36,9 @@ async fn main() {
 
 async fn new_bot(data: Data) {
     let options = poise::FrameworkOptions {
-        on_error: |err| Box::pin(error::on_error(err)),
+        listener: |ctx, event, fwctx, data| Box::pin(listener::process(ctx, event, fwctx, data)),
+        command_check: Some(|ctx| Box::pin(command_check::process(ctx))),
+        on_error: |err| Box::pin(on_error::process(err)),
         commands: vec![
             owner::register(),
             general::help(),
@@ -41,7 +46,6 @@ async fn new_bot(data: Data) {
             general::say(),
             general::nade(),
         ],
-        listener: |ctx, event, fwctx, data| Box::pin(listener::listener(ctx, event, fwctx, data)),
         ..Default::default()
     };
 
@@ -62,14 +66,22 @@ struct Config(Vec<DataRaw>);
 #[derive(serde::Serialize, serde::Deserialize)]
 struct DataRaw {
     token: String,
+    globalchat_name: Option<String>,
 }
 
 pub struct Data {
     token: String,
+    globalchat_name: Option<String>,
+    globalchat_webhook:
+        RwLock<HashMap<serenity::GuildId, (serenity::ChannelId, serenity::Webhook)>>,
 }
 
 impl Data {
     async fn convert(from: DataRaw) -> Result<Data, Error> {
-        Ok(Data { token: from.token })
+        Ok(Data {
+            token: from.token,
+            globalchat_name: from.globalchat_name,
+            globalchat_webhook: RwLock::const_new(HashMap::new()),
+        })
     }
 }

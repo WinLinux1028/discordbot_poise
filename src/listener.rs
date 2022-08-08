@@ -1,11 +1,9 @@
 use poise::serenity_prelude as serenity;
 
-use crate::Data;
+use crate::{Data, Error};
 mod guild_member_removal;
 
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
-
-pub async fn listener<'a>(
+pub async fn process<'a>(
     ctx: &'a serenity::Context,
     event: &'a poise::Event<'a>,
     fwctx: poise::FrameworkContext<'a, Data, Error>,

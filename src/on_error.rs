@@ -1,6 +1,6 @@
 use crate::{Context, Data, Error};
 
-pub async fn on_error(err: poise::FrameworkError<'_, Data, Error>) {
+pub async fn process(err: poise::FrameworkError<'_, Data, Error>) {
     use poise::FrameworkError::*;
     match err {
         Command { error, ctx } => {

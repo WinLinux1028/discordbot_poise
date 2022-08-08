@@ -1,7 +1,5 @@
-use crate::Data;
+use crate::{Data, Error};
 use poise::serenity_prelude as serenity;
-
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
 pub async fn ready<'a>(
     ctx: &'a serenity::Context,
