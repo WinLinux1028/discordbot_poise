@@ -22,8 +22,8 @@ async fn main() {
         .unwrap();
     let config: Config = serde_json::from_str(&config).unwrap();
 
-    for data in config.0 {
-        tokio::spawn(new_bot(data));
+    for data_raw in config.0 {
+        tokio::spawn(new_bot(Data::convert(data_raw).await.unwrap()));
     }
 
     loop {
@@ -57,9 +57,19 @@ async fn new_bot(data: Data) {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct Config(Vec<Data>);
+struct Config(Vec<DataRaw>);
 
 #[derive(serde::Serialize, serde::Deserialize)]
+struct DataRaw {
+    token: String,
+}
+
 pub struct Data {
     token: String,
+}
+
+impl Data {
+    async fn convert(from: DataRaw) -> Result<Data, Error> {
+        Ok(Data { token: from.token })
+    }
 }
