@@ -4,20 +4,19 @@ use crate::{Data, Error};
 use poise::serenity_prelude as serenity;
 
 pub async fn is_globalchat(
-    ctx: &serenity::Context,
     data: &Data,
+    guild_id: serenity::GuildId,
     channel_id: serenity::ChannelId,
 ) -> bool {
-    let globalchat_name = match &data.globalchat_name {
-        Some(s) => s,
-        None => return false,
-    };
-    let channel_name = match channel_id.name(ctx).await {
+    let data = data.globalchat_webhook.read().await;
+
+    let globalchat_channel = data.get(&guild_id);
+    let (globalchat_channel, _) = match globalchat_channel {
         Some(s) => s,
         None => return false,
     };
 
-    globalchat_name == &channel_name
+    globalchat_channel == &channel_id
 }
 
 pub async fn collect_webhooks(ctx: &serenity::Context, data: &Data) -> Result<(), Error> {
