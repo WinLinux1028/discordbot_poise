@@ -83,10 +83,17 @@ pub async fn set_channel(
     channel: &serenity::GuildChannel,
 ) -> Result<(), Error> {
     let webhook = channel.id.create_webhook(ctx, "globalchat").await?;
-    data.globalchat_webhook
+    let oldval = data
+        .globalchat_webhook
         .write()
         .await
         .insert(channel.guild_id, (channel.id, webhook));
+
+    let oldval = match oldval {
+        Some(s) => s,
+        None => return Ok(()),
+    };
+    oldval.1.delete(ctx).await?;
 
     Ok(())
 }
