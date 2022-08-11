@@ -2,6 +2,7 @@
     {
         // BOT1(必須)
         "token": "INPUT_TOKEN_HERE"
+        "globalchat_name": "hoge_global"
     },
     {
         // BOTn(オプション)
