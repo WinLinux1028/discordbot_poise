@@ -56,25 +56,57 @@ pub async fn collect_webhooks(ctx: &serenity::Context, data: &Data) -> Result<()
                         break;
                     }
                 }
+
                 // グローバルチャットのチャンネルが見つからなかった場合
                 if globalchat_webhook.is_none() {
-                    globalchat_webhook = match channel.id.create_webhook(ctx, "globalchat").await {
-                        Ok(o) => Some(o),
-                        Err(_) => {
-                            continue;
-                        }
-                    };
+                    if set_channel(ctx, data, &channel).await.is_err() {
+                        continue;
+                    }
+                } else {
+                    data.globalchat_webhook
+                        .write()
+                        .await
+                        .insert(guild.id, (channel.id, globalchat_webhook.unwrap()));
                 }
-
-                data.globalchat_webhook
-                    .write()
-                    .await
-                    .insert(guild.id, (channel.id, globalchat_webhook.unwrap()));
 
                 break;
             }
         }
     }
+
+    Ok(())
+}
+
+pub async fn set_channel(
+    ctx: &serenity::Context,
+    data: &Data,
+    channel: &serenity::GuildChannel,
+) -> Result<(), Error> {
+    let webhook = channel.id.create_webhook(ctx, "globalchat").await?;
+    data.globalchat_webhook
+        .write()
+        .await
+        .insert(channel.guild_id, (channel.id, webhook));
+
+    Ok(())
+}
+
+pub async fn unset_channel(
+    ctx: &serenity::Context,
+    data: &Data,
+    channel: &serenity::GuildChannel,
+) -> Result<(), Error> {
+    let oldval = data
+        .globalchat_webhook
+        .write()
+        .await
+        .remove(&channel.guild_id);
+
+    let oldval = match oldval {
+        Some(s) => s,
+        None => return Ok(()),
+    };
+    oldval.1.delete(ctx).await?;
 
     Ok(())
 }
