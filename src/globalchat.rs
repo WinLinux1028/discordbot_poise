@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{Data, Error};
 use poise::serenity_prelude as serenity;
@@ -114,6 +114,67 @@ pub async fn unset_channel(
         None => return Ok(()),
     };
     oldval.1.delete(ctx).await?;
+
+    Ok(())
+}
+
+pub async fn send_msg(
+    ctx: &serenity::Context,
+    data: &Data,
+    message: &serenity::Message,
+) -> Result<(), Error> {
+    let guild = match &message.guild_id {
+        Some(s) => s,
+        None => return Ok(()),
+    };
+    if !is_globalchat(data, *guild, message.channel_id).await {
+        return Ok(());
+    }
+
+    // 画像をembedとして扱う
+    let embeds = message
+        .attachments
+        .iter()
+        .filter(|file| file.width.is_some() && file.height.is_some())
+        .map(|file| serenity::Embed::fake(|embed| embed.image(&file.proxy_url)))
+        .collect();
+    // 各種情報を取得
+    let avator = match message.author.static_avatar_url() {
+        Some(s) => s,
+        None => message.author.face(),
+    };
+    let guild_name = match guild.name(ctx) {
+        Some(s) => s,
+        None => return Ok(()),
+    };
+    // 各サーバーに送信する内容を決める
+    let mut content = serenity::ExecuteWebhook::default();
+    content
+        .avatar_url(avator)
+        .username(format!("{}@{}", message.author.tag(), guild_name))
+        .content(message.content_safe(ctx))
+        .embeds(embeds);
+
+    let webhooks = data.globalchat_webhook.read().await;
+    // メッセージが送信されたチャンネル以外を仕分け､Webhookの情報だけを残す
+    let webhooks_iter = webhooks
+        .values()
+        .filter(|webhook| webhook.0 != message.channel_id)
+        .map(|webhook| webhook.1.clone());
+    // 各サーバーに送信していく
+    for webhook in webhooks_iter {
+        let ctx = Arc::clone(&ctx.http);
+        let content = content.clone();
+        // 高速化のためマルチスレッド化
+        tokio::spawn(async move {
+            let _ = webhook
+                .execute(ctx, false, |execute| {
+                    *execute = content;
+                    execute
+                })
+                .await;
+        });
+    }
 
     Ok(())
 }

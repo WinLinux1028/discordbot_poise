@@ -9,10 +9,8 @@ impl Listener<'_> {
         guild: &serenity::GuildId,
         user: &serenity::User,
         _member: &Option<serenity::Member>,
-    ) -> Result<(), Error> {
+    ) {
         let _ = notify_member_removal(self.ctx, guild, user).await;
-
-        Ok(())
     }
 }
 
@@ -30,12 +28,7 @@ async fn notify_member_removal(
         None => return Ok(()),
     };
 
-    let message = format!(
-        "{}({}#{})が退出しました",
-        user.mention(),
-        &user.name,
-        user.discriminator
-    );
+    let message = format!("{}({})が退出しました", user.mention(), user.tag());
     channel.say(ctx, message).await?;
 
     Ok(())

@@ -5,6 +5,7 @@ mod channel_create;
 mod channel_delete;
 mod channel_update;
 mod guild_member_removal;
+mod message;
 mod thread_create;
 
 #[allow(dead_code)]
@@ -29,19 +30,22 @@ pub async fn process<'a>(
             user,
             member_data_if_available: member,
         } => {
-            listener.guild_member_removal(guild, user, member).await?;
+            listener.guild_member_removal(guild, user, member).await;
         }
         ThreadCreate { thread } => {
-            listener.thread_create(thread).await?;
+            listener.thread_create(thread).await;
         }
         ChannelCreate { channel } => {
-            listener.channel_create(channel).await?;
+            listener.channel_create(channel).await;
         }
         ChannelUpdate { old, new } => {
-            listener.channel_update(old, new).await?;
+            listener.channel_update(old, new).await;
         }
         ChannelDelete { channel } => {
-            listener.channel_delete(channel).await?;
+            listener.channel_delete(channel).await;
+        }
+        Message { new_message } => {
+            listener.message(new_message).await;
         }
         _ => {}
     }
