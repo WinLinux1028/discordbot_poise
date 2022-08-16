@@ -1,7 +1,6 @@
-use crate::listener::Listener;
+use crate::{listener::Listener, Error};
 
 use poise::serenity_prelude::{self as serenity, Mentionable};
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
 impl Listener<'_> {
     pub async fn guild_member_removal(

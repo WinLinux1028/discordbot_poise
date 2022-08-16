@@ -1,6 +1,7 @@
 use tokio::io::AsyncReadExt;
 
 use poise::serenity_prelude as serenity;
+use sqlx::mysql;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
@@ -42,6 +43,7 @@ async fn new_bot(data: Data) {
         on_error: |err| Box::pin(on_error::process(err)),
         commands: vec![
             owner::register(),
+            owner::mute::mute(),
             general::help(),
             general::ping(),
             general::say(),
@@ -68,11 +70,13 @@ struct Config(Vec<DataRaw>);
 struct DataRaw {
     token: String,
     globalchat_name: Option<String>,
+    mariadb: String,
 }
 
 pub struct Data {
     token: String,
     globalchat: Option<globalchat::GlobalChat>,
+    mariadb: mysql::MySqlPool,
 }
 
 impl Data {
@@ -84,9 +88,29 @@ impl Data {
             globalchat = None;
         }
 
+        let mariadb = mysql::MySqlPool::connect(&from.mariadb).await?;
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS mutelist (user INT8 UNSIGNED NOT NULL PRIMARY KEY);",
+        )
+        .execute(&mariadb)
+        .await?;
+
         Ok(Data {
             token: from.token,
             globalchat,
+            mariadb,
         })
+    }
+
+    pub async fn is_muted(&self, user: serenity::UserId) -> bool {
+        let result = sqlx::query("SELECT user FROM mutelist WHERE user=? LIMIT 1")
+            .bind(user.0)
+            .fetch_optional(&self.mariadb)
+            .await;
+
+        match result {
+            Ok(o) => o.is_some(),
+            Err(_) => false,
+        }
     }
 }
