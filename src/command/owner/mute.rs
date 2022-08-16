@@ -10,7 +10,7 @@ use sqlx::Row;
     subcommands("add", "remove")
 )]
 pub async fn mute(ctx: Context<'_>) -> Result<(), Error> {
-    let muted_users = sqlx::query("SELECT user FROM mutelist")
+    let muted_users = sqlx::query("SELECT (user) FROM mutelist")
         .fetch_all(&ctx.data().mariadb)
         .await?;
     let muted_users: Vec<serenity::UserId> = muted_users

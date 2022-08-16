@@ -103,7 +103,7 @@ impl Data {
     }
 
     pub async fn is_muted(&self, user: serenity::UserId) -> bool {
-        let result = sqlx::query("SELECT user FROM mutelist WHERE user=? LIMIT 1")
+        let result = sqlx::query("SELECT (user) FROM mutelist WHERE user=? LIMIT 1")
             .bind(user.0)
             .fetch_optional(&self.mariadb)
             .await;
