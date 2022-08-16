@@ -1,4 +1,4 @@
-use crate::{globalchat, listener::Listener};
+use crate::listener::Listener;
 
 use poise::serenity_prelude as serenity;
 
@@ -8,6 +8,8 @@ impl Listener<'_> {
             return;
         }
 
-        let _ = globalchat::send_msg(self.ctx, self.data, new_nessage).await;
+        if let Some(globalchat) = &self.data.globalchat {
+            let _ = globalchat.send_msg(self.ctx, new_nessage).await;
+        }
     }
 }

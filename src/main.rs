@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use tokio::{io::AsyncReadExt, sync::RwLock};
+use tokio::io::AsyncReadExt;
 
 use poise::serenity_prelude as serenity;
 
@@ -8,9 +7,10 @@ pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 pub mod command;
 use command::*;
+pub mod features;
+use features::*;
 
 mod command_check;
-mod globalchat;
 mod listener;
 mod on_error;
 mod ready;
@@ -72,17 +72,21 @@ struct DataRaw {
 
 pub struct Data {
     token: String,
-    globalchat_name: Option<String>,
-    globalchat_webhook:
-        RwLock<HashMap<serenity::GuildId, (serenity::ChannelId, serenity::Webhook)>>,
+    globalchat: Option<globalchat::GlobalChat>,
 }
 
 impl Data {
     async fn convert(from: DataRaw) -> Result<Data, Error> {
+        let globalchat;
+        if let Some(globalchat_name) = from.globalchat_name {
+            globalchat = Some(globalchat::GlobalChat::new(globalchat_name).await);
+        } else {
+            globalchat = None;
+        }
+
         Ok(Data {
             token: from.token,
-            globalchat_name: from.globalchat_name,
-            globalchat_webhook: RwLock::const_new(HashMap::new()),
+            globalchat,
         })
     }
 }

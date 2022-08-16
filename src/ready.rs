@@ -9,7 +9,9 @@ pub async fn process<'a>(
 ) -> Result<Data, Error> {
     ctx.idle().await;
 
-    let _ = crate::globalchat::collect_webhooks(ctx, &data).await;
+    if let Some(globalchat) = &data.globalchat {
+        let _ = globalchat.collect_webhooks(ctx).await;
+    }
 
     ctx.set_presence(
         Some(serenity::Activity::streaming(

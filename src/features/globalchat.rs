@@ -1,0 +1,23 @@
+use std::collections::HashMap;
+use tokio::sync::RwLock;
+
+use poise::serenity_prelude as serenity;
+
+mod collect_webhook;
+mod is_globalchat;
+mod send_msg;
+mod set_unset_channel;
+
+pub struct GlobalChat {
+    pub name: String,
+    webhook: RwLock<HashMap<serenity::GuildId, (serenity::ChannelId, serenity::Webhook)>>,
+}
+
+impl GlobalChat {
+    pub async fn new(name: String) -> Self {
+        GlobalChat {
+            name,
+            webhook: RwLock::const_new(HashMap::new()),
+        }
+    }
+}

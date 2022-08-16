@@ -1,4 +1,5 @@
 use std::{collections::HashMap, sync::Arc};
+use tokio::sync::RwLock;
 
 use crate::{Data, Error};
 use poise::serenity_prelude as serenity;
@@ -8,9 +9,13 @@ pub async fn is_globalchat(
     guild_id: serenity::GuildId,
     channel_id: serenity::ChannelId,
 ) -> bool {
-    let data = data.globalchat_webhook.read().await;
+    let globalchat = match &data.globalchat {
+        Some(s) => s,
+        None => return false,
+    };
+    let webhook = globalchat.webhook.read().await;
 
-    let globalchat_channel = data.get(&guild_id);
+    let globalchat_channel = webhook.get(&guild_id);
     let (globalchat_channel, _) = match globalchat_channel {
         Some(s) => s,
         None => return false,
