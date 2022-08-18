@@ -28,7 +28,7 @@ async fn main() {
     let config: Config = serde_json::from_str(&config).unwrap();
 
     for data_raw in config.0 {
-        tokio::spawn(new_bot(Data::convert(data_raw).await.unwrap()));
+        tokio::spawn(new_bot(data_raw));
     }
 
     loop {
@@ -36,7 +36,7 @@ async fn main() {
     }
 }
 
-async fn new_bot(data: Data) {
+async fn new_bot(data_raw: DataRaw) {
     let options = poise::FrameworkOptions {
         listener: |ctx, event, fwctx, data| Box::pin(listener::process(ctx, event, fwctx, data)),
         command_check: Some(|ctx| Box::pin(command_check::process(ctx))),
@@ -54,10 +54,10 @@ async fn new_bot(data: Data) {
 
     let framework = poise::Framework::builder()
         .options(options)
-        .token(&data.token)
+        .token(data_raw.token.clone())
         .intents(serenity::GatewayIntents::all())
         .user_data_setup(|ctx, ready, framework| {
-            Box::pin(ready::process(ctx, ready, framework, data))
+            Box::pin(ready::process(ctx, ready, framework, data_raw))
         });
 
     framework.run_autosharded().await.unwrap();
@@ -67,28 +67,21 @@ async fn new_bot(data: Data) {
 struct Config(Vec<DataRaw>);
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct DataRaw {
+pub struct DataRaw {
     token: String,
     globalchat_name: Option<String>,
     mariadb: String,
+    backup: Option<backup::Backup>,
 }
 
-pub struct Data {
-    token: String,
-    globalchat: Option<globalchat::GlobalChat>,
-    mariadb: mysql::MySqlPool,
-}
-
-impl Data {
-    async fn convert(from: DataRaw) -> Result<Data, Error> {
-        let globalchat;
-        if let Some(globalchat_name) = from.globalchat_name {
-            globalchat = Some(globalchat::GlobalChat::new(globalchat_name).await);
-        } else {
-            globalchat = None;
+impl DataRaw {
+    pub async fn to_data(self, ctx: &serenity::Context) -> Result<Data, Error> {
+        let mut globalchat = None;
+        if let Some(globalchat_name) = self.globalchat_name {
+            globalchat = Some(globalchat::GlobalChat::new(globalchat_name, ctx).await);
         }
 
-        let mariadb = mysql::MySqlPool::connect(&from.mariadb).await?;
+        let mariadb = mysql::MySqlPool::connect(&self.mariadb).await?;
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS mutelist (user INT8 UNSIGNED NOT NULL PRIMARY KEY);",
         )
@@ -96,12 +89,20 @@ impl Data {
         .await?;
 
         Ok(Data {
-            token: from.token,
             globalchat,
             mariadb,
+            backup: self.backup,
         })
     }
+}
 
+pub struct Data {
+    globalchat: Option<globalchat::GlobalChat>,
+    mariadb: mysql::MySqlPool,
+    backup: Option<backup::Backup>,
+}
+
+impl Data {
     pub async fn is_muted(&self, user: serenity::UserId) -> bool {
         let result = sqlx::query("SELECT (user) FROM mutelist WHERE user=? LIMIT 1")
             .bind(user.0)

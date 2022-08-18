@@ -14,10 +14,13 @@ pub struct GlobalChat {
 }
 
 impl GlobalChat {
-    pub async fn new(name: String) -> Self {
-        GlobalChat {
+    pub async fn new(name: String, ctx: &serenity::Context) -> Self {
+        let globalchat = GlobalChat {
             name,
             webhook: RwLock::const_new(HashMap::new()),
-        }
+        };
+        let _ = globalchat.collect_webhooks(ctx).await;
+
+        globalchat
     }
 }

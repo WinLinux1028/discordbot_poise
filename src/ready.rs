@@ -1,17 +1,15 @@
-use crate::{Data, Error};
+use crate::{Data, DataRaw, Error};
 use poise::serenity_prelude as serenity;
 
 pub async fn process<'a>(
     ctx: &'a serenity::Context,
     ready: &'a serenity::Ready,
     framework: &'a poise::Framework<Data, Error>,
-    data: Data,
+    data_raw: DataRaw,
 ) -> Result<Data, Error> {
     ctx.idle().await;
 
-    if let Some(globalchat) = &data.globalchat {
-        let _ = globalchat.collect_webhooks(ctx).await;
-    }
+    let data = data_raw.to_data(ctx).await?;
 
     ctx.set_presence(
         Some(serenity::Activity::streaming(
