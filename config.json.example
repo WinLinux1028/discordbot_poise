@@ -1,17 +1,14 @@
 [
     {
         // BOT1(必須)
-        "token": "INPUT_TOKEN_HERE"
-        "globalchat_name": "hoge_global"
-        "mariadb": "mysql://user:pass@localhost/botdb"
-        "backup": {
-            "guild": 1145141919810, // バックアップ先のカテゴリがあるサーバーのID
-            "category": 36493145450721 // バックアップ先のカテゴリのID
-        }
+        "token": "INPUT_TOKEN_HERE",
+        "globalchat_name": "hoge_global",
+        "mariadb": "mysql://user:pass@localhost/botdb",
+        "backup_id": 36493145450721 // バックアップ先のカテゴリのID
     },
     {
         // BOTn(オプション)
-        "token": "INPUT_TOKEN_HERE"
+        "token": "INPUT_TOKEN_HERE",
         "mariadb": "mysql://user:pass@localhost/botdb2"
     }
 ]

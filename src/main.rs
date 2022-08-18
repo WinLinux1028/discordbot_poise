@@ -71,7 +71,7 @@ pub struct DataRaw {
     token: String,
     globalchat_name: Option<String>,
     mariadb: String,
-    backup: Option<backup::Backup>,
+    backup_id: Option<serenity::ChannelId>,
 }
 
 impl DataRaw {
@@ -88,10 +88,19 @@ impl DataRaw {
         .execute(&mariadb)
         .await?;
 
+        let mut backup = None;
+        if let Some(backup_id) = self.backup_id {
+            if let Ok(serenity::Channel::Category(backup_category)) =
+                backup_id.to_channel(ctx).await
+            {
+                backup = Some(backup_category)
+            }
+        }
+
         Ok(Data {
             globalchat,
             mariadb,
-            backup: self.backup,
+            backup,
         })
     }
 }
@@ -99,7 +108,7 @@ impl DataRaw {
 pub struct Data {
     globalchat: Option<globalchat::GlobalChat>,
     mariadb: mysql::MySqlPool,
-    backup: Option<backup::Backup>,
+    backup: Option<serenity::ChannelCategory>,
 }
 
 impl Data {
