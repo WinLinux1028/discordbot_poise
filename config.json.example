@@ -7,7 +7,7 @@
         "backup_id": 36493145450721 // バックアップ先のカテゴリのID
     },
     {
-        // BOTn(オプション)
+        // BOT2以降(オプション)
         "token": "INPUT_TOKEN_HERE",
         "mariadb": "mysql://user:pass@localhost/botdb2"
     }

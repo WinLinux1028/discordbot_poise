@@ -37,3 +37,7 @@ features = ["derive", "unstable", "alloc", "rc"]
 [dependencies.sqlx]
 version = "0.6"
 features = ["runtime-tokio-rustls", "mysql", "tls"]
+
+[dependencies.chrono]
+version = "0.4"
+features = ["serde"]

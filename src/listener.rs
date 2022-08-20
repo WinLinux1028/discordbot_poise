@@ -6,6 +6,9 @@ mod channel_delete;
 mod channel_update;
 mod guild_member_removal;
 mod message;
+mod message_delete;
+mod message_delete_bulk;
+mod message_update;
 mod thread_create;
 
 #[allow(dead_code)]
@@ -47,6 +50,29 @@ pub async fn process<'a>(
         Message { new_message } => {
             listener.message(new_message).await;
         }
+        MessageDelete {
+            channel_id,
+            deleted_message_id,
+            guild_id,
+        } => {
+            listener
+                .message_delete(channel_id, deleted_message_id, guild_id)
+                .await;
+        }
+        MessageDeleteBulk {
+            channel_id,
+            multiple_deleted_messages_ids,
+            guild_id,
+        } => {
+            listener
+                .message_delete_bulk(channel_id, multiple_deleted_messages_ids, guild_id)
+                .await
+        }
+        MessageUpdate {
+            old_if_available,
+            new,
+            event,
+        } => listener.message_update(old_if_available, new, event).await,
         _ => {}
     }
     Ok(())

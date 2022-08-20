@@ -7,6 +7,7 @@ pub async fn process<'a>(
     framework: &'a poise::Framework<Data, Error>,
     data_raw: DataRaw,
 ) -> Result<Data, Error> {
+    ctx.cache.set_max_messages(51200);
     ctx.idle().await;
 
     let data = data_raw.to_data(ctx).await?;
