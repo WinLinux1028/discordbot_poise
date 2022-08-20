@@ -18,6 +18,10 @@ impl Listener<'_> {
             None => return,
         };
 
+        // BOT自身が編集したものは無視する
+        if old.author.id == self.ctx.cache.current_user().id {
+            return;
+        }
         // URLのembedが付いたときには処理しないようにする
         if old.edited_timestamp == new.edited_timestamp {
             return;
