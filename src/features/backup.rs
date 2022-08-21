@@ -27,5 +27,5 @@ pub async fn backup(
     let _ = send_guild::process(ctx, action, &guild, send.clone()).await;
 
     // 設定ファイルに指定されたカテゴリー内のチャンネルに送信
-    let _ = send_category::process(ctx, data, send.clone()).await;
+    let _ = send_category::process(ctx, data, &guild, send.clone()).await;
 }

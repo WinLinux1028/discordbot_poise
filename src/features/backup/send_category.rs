@@ -5,19 +5,20 @@ use crate::{Data, Error};
 pub async fn process(
     ctx: &serenity::Context,
     data: &Data,
+    guild: &serenity::Guild,
     send: serenity::CreateMessage<'_>,
 ) -> Result<(), Error> {
     let backup = match &data.backup {
         Some(s) => s,
         None => return Ok(()),
     };
-    let guild = match backup.guild_id.to_guild_cached(ctx) {
+    let backup_guild = match backup.guild_id.to_guild_cached(ctx) {
         Some(s) => s,
         None => return Ok(()),
     };
 
     // バックアップカテゴリに属している､かつサーバーのIDで終わっているチャンネルを見つける
-    let mut channel = guild
+    let mut backup_channel = backup_guild
         .channels
         .iter()
         .filter_map(|(_, channel)| match channel {
@@ -30,8 +31,8 @@ pub async fn process(
 
     // チャンネルが見つからなければ作る
     let new_channel;
-    if channel.is_none() {
-        new_channel = guild
+    if backup_channel.is_none() {
+        new_channel = backup_guild
             .create_channel(ctx, |channel| {
                 channel
                     .kind(serenity::ChannelType::Text)
@@ -39,15 +40,15 @@ pub async fn process(
                     .category(backup.id)
             })
             .await?;
-        channel = Some(&new_channel);
+        backup_channel = Some(&new_channel);
     }
 
     // 送信する
-    let channel = match channel {
+    let backup_channel = match backup_channel {
         Some(s) => s,
         None => return Ok(()),
     };
-    channel
+    backup_channel
         .send_message(ctx, |msg| {
             *msg = send;
             msg

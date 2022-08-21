@@ -8,7 +8,7 @@ pub async fn process(
     guild: &serenity::Guild,
     send: serenity::CreateMessage<'_>,
 ) -> Result<(), Error> {
-    let guild_channel = guild
+    let history_channel = guild
         .channels
         .values()
         .filter_map(|channel| match channel {
@@ -17,12 +17,12 @@ pub async fn process(
         })
         .find(|channel| channel.name() == format!("{}履歴", action));
 
-    let guild_channel = match guild_channel {
+    let history_channel = match history_channel {
         Some(s) => s,
         None => return Ok(()),
     };
 
-    guild_channel
+    history_channel
         .send_message(ctx, |msg| {
             *msg = send;
             msg
