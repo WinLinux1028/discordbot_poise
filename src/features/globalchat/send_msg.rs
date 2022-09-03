@@ -11,14 +11,6 @@ impl globalchat::GlobalChat {
         ctx: &serenity::Context,
         message: &serenity::Message,
     ) -> Result<(), Error> {
-        let guild = match &message.guild_id {
-            Some(s) => s,
-            None => return Ok(()),
-        };
-        if !self.is_globalchat(*guild, message.channel_id).await {
-            return Ok(());
-        }
-
         // 画像をembedとして扱う
         let embeds = message
             .attachments
@@ -31,7 +23,7 @@ impl globalchat::GlobalChat {
             Some(s) => s,
             None => message.author.face(),
         };
-        let guild_name = match guild.name(ctx) {
+        let guild_name = match message.guild_id.unwrap().name(ctx) {
             Some(s) => s,
             None => return Ok(()),
         };

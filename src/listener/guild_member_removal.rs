@@ -9,7 +9,9 @@ impl Listener<'_> {
         user: &serenity::User,
         _member: &Option<serenity::Member>,
     ) {
-        if user.id == self.ctx.cache.current_user().id {}
+        if user.id == self.ctx.cache.current_user().id {
+            return;
+        }
 
         let _ = notify_member_removal(self.ctx, guild, user).await;
         let _ = NewMember::remove(&self.data.mariadb, *guild, user.id).await;

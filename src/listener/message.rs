@@ -9,8 +9,15 @@ impl Listener<'_> {
         }
 
         if let Some(globalchat) = &self.data.globalchat {
-            let _ = globalchat.send_msg(self.ctx, new_message).await;
-            return;
+            if let Some(guild_id) = new_message.guild_id {
+                if globalchat
+                    .is_globalchat(guild_id, new_message.channel_id)
+                    .await
+                {
+                    let _ = globalchat.send_msg(self.ctx, new_message).await;
+                    return;
+                }
+            }
         }
 
         if let Ok(true) = new_message.mentions_me(self.ctx).await {
