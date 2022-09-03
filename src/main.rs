@@ -7,9 +7,11 @@ pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 pub mod command;
-use command::*;
 pub mod features;
 use features::*;
+
+use crate::config::data::Data;
+pub mod config;
 
 mod command_check;
 mod listener;
@@ -42,12 +44,13 @@ async fn new_bot(data_raw: DataRaw) {
         command_check: Some(|ctx| Box::pin(command_check::process(ctx))),
         on_error: |err| Box::pin(on_error::process(err)),
         commands: vec![
-            owner::register(),
-            owner::mute::mute(),
-            general::help(),
-            general::ping(),
-            general::say(),
-            general::nade(),
+            command::owner::register(),
+            command::owner::mute::mute(),
+            command::general::help(),
+            command::general::ping(),
+            command::general::say(),
+            command::general::nade(),
+            command::member_manager::member_manager(),
         ],
         ..Default::default()
     };
@@ -75,7 +78,7 @@ pub struct DataRaw {
 }
 
 impl DataRaw {
-    pub async fn to_data(self, ctx: &serenity::Context) -> Result<Data, Error> {
+    pub async fn into_data(self, ctx: &serenity::Context) -> Result<Data, Error> {
         let mut globalchat = None;
         if let Some(globalchat_name) = self.globalchat_name {
             globalchat = Some(globalchat::GlobalChat::new(globalchat_name, ctx).await);
@@ -84,6 +87,22 @@ impl DataRaw {
         let mariadb = mysql::MySqlPool::connect(&self.mariadb).await?;
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS mutelist (user INT8 UNSIGNED NOT NULL PRIMARY KEY);",
+        )
+        .execute(&mariadb)
+        .await?;
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS guildconfig (
+                guild INT8 UNSIGNED NOT NULL PRIMARY KEY,
+                member_manager_lockdowned BOOLEAN NOT NULL, member_manager_allowlockdown INT8 UNSIGNED, member_manager_memberrole INT8 UNSIGNED, member_manager_kickable INT8 UNSIGNED
+            );",
+        )
+        .execute(&mariadb)
+        .await?;
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS member_manager_newmember (
+                guild INT8 UNSIGNED NOT NULL, user INT8 UNSIGNED NOT NULL, jointime INT8 NOT NULL,
+                PRIMARY KEY (guild, user)
+            );",
         )
         .execute(&mariadb)
         .await?;
@@ -102,25 +121,5 @@ impl DataRaw {
             mariadb,
             backup,
         })
-    }
-}
-
-pub struct Data {
-    globalchat: Option<globalchat::GlobalChat>,
-    mariadb: mysql::MySqlPool,
-    backup: Option<serenity::ChannelCategory>,
-}
-
-impl Data {
-    pub async fn is_muted(&self, user: serenity::UserId) -> bool {
-        let result = sqlx::query("SELECT (user) FROM mutelist WHERE user=? LIMIT 1")
-            .bind(user.0)
-            .fetch_optional(&self.mariadb)
-            .await;
-
-        match result {
-            Ok(o) => o.is_some(),
-            Err(_) => false,
-        }
     }
 }

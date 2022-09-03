@@ -10,7 +10,7 @@ pub async fn process<'a>(
     ctx.cache.set_max_messages(51200);
     ctx.idle().await;
 
-    let data = data_raw.to_data(ctx).await?;
+    let data = data_raw.into_data(ctx).await?;
 
     ctx.set_presence(
         Some(serenity::Activity::streaming(

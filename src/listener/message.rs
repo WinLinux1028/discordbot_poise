@@ -8,12 +8,13 @@ impl Listener<'_> {
             return;
         }
 
-        if let Ok(true) = new_message.mentions_me(self.ctx).await {
-            let _ = new_message.channel_id.say(self.ctx, "呼んだ?").await;
-        }
-
         if let Some(globalchat) = &self.data.globalchat {
             let _ = globalchat.send_msg(self.ctx, new_message).await;
+            return;
+        }
+
+        if let Ok(true) = new_message.mentions_me(self.ctx).await {
+            let _ = new_message.channel_id.say(self.ctx, "呼んだ?").await;
         }
     }
 }

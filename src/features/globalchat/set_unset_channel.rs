@@ -9,7 +9,22 @@ impl globalchat::GlobalChat {
         ctx: &serenity::Context,
         channel: &serenity::GuildChannel,
     ) -> Result<(), Error> {
-        let webhook = channel.id.create_webhook(ctx, "globalchat").await?;
+        // チャンネルにWebhookが既にないか確認する
+        let mut webhook = channel
+            .webhooks(ctx)
+            .await?
+            .into_iter()
+            .filter(|webhook| webhook.user.is_some())
+            .find(|webhook| webhook.user.as_ref().unwrap().id == ctx.cache.current_user().id);
+
+        // もしWebhookが存在しなければ新しく作る
+        if webhook.is_none() {
+            webhook = Some(channel.id.create_webhook(ctx, "globalchat").await?);
+        }
+        let webhook = webhook.unwrap();
+        let webhook_id = webhook.id;
+
+        // 取得したWebhookを登録する
         let oldval = self
             .webhook
             .write()
@@ -17,11 +32,11 @@ impl globalchat::GlobalChat {
             .insert(channel.guild_id, (channel.id, webhook));
 
         // 古いWebhookの後始末
-        let oldval = match oldval {
-            Some(s) => s,
-            None => return Ok(()),
-        };
-        oldval.1.delete(ctx).await?;
+        if let Some(oldval) = oldval {
+            if oldval.1.id != webhook_id {
+                let _ = oldval.1.delete(ctx).await;
+            }
+        }
 
         Ok(())
     }
@@ -33,11 +48,9 @@ impl globalchat::GlobalChat {
     ) -> Result<(), Error> {
         let oldval = self.webhook.write().await.remove(&guild);
 
-        let oldval = match oldval {
-            Some(s) => s,
-            None => return Ok(()),
-        };
-        oldval.1.delete(ctx).await?;
+        if let Some(oldval) = oldval {
+            oldval.1.delete(ctx).await?;
+        }
 
         Ok(())
     }
