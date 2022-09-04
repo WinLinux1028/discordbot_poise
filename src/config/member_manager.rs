@@ -101,6 +101,18 @@ impl NewMember {
 
         Ok(())
     }
+
+    pub async fn remove_guild(
+        mariadb: &sqlx::mysql::MySqlPool,
+        guild: serenity::GuildId,
+    ) -> Result<(), Error> {
+        sqlx::query("DELETE FROM member_manager_newmember WHERE guild=? LIMIT 1;")
+            .bind(guild.0)
+            .execute(mariadb)
+            .await?;
+
+        Ok(())
+    }
 }
 
 impl TryFrom<NewMemberSQL> for NewMember {

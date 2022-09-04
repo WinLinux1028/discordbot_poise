@@ -46,7 +46,8 @@ impl GuildConfig {
         let raw: GuildConfigSQL = guild_config.clone().into();
         let _ = sqlx::query(
             "INSERT INTO guildconfig
-                (guild,
+                (
+                    guild,
                     member_manager_lockdowned, member_manager_allowlockdown, member_manager_memberrole, member_manager_kickable
                 )
                 VALUES (?, ?, ?, ?, ?);"
@@ -92,9 +93,12 @@ impl GuildConfig {
         Ok(())
     }
 
-    pub async fn remove(self, mariadb: &sqlx::mysql::MySqlPool) -> Result<(), Error> {
+    pub async fn remove(
+        mariadb: &sqlx::mysql::MySqlPool,
+        guild: serenity::GuildId,
+    ) -> Result<(), Error> {
         sqlx::query("DELETE FROM guildconfig WHERE guild=? LIMIT 1;")
-            .bind(self.guild.0)
+            .bind(guild.0)
             .execute(mariadb)
             .await?;
 
