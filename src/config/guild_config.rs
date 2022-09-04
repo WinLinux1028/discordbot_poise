@@ -34,7 +34,10 @@ pub struct GuildConfig {
 }
 
 impl GuildConfig {
-    pub async fn new(mariadb: &sqlx::mysql::MySqlPool, guild: serenity::GuildId) -> Self {
+    async fn new(
+        mariadb: &sqlx::mysql::MySqlPool,
+        guild: serenity::GuildId,
+    ) -> Result<Self, Error> {
         let guild_config = Self {
             guild,
             member_manager_lockdowned: false,
@@ -43,8 +46,9 @@ impl GuildConfig {
             member_manager_kickable: None,
         };
 
+        // DBにエントリーを追加
         let raw: GuildConfigSQL = guild_config.clone().into();
-        let _ = sqlx::query(
+        sqlx::query(
             "INSERT INTO guildconfig
                 (
                     guild,
@@ -57,23 +61,29 @@ impl GuildConfig {
             .bind(raw.member_manager_allowlockdown)
             .bind(raw.member_manager_memberrole)
             .bind(raw.member_manager_kickable)
-            .execute(mariadb).await;
+            .execute(mariadb).await?;
 
-        guild_config
+        Ok(guild_config)
     }
 
     pub async fn get(
         mariadb: &sqlx::mysql::MySqlPool,
         guild: serenity::GuildId,
-    ) -> Result<Option<Self>, Error> {
+    ) -> Result<Self, Error> {
+        // DBから取得する
         let raw: Option<GuildConfigSQL> =
             sqlx::query_as("SELECT * FROM guildconfig WHERE guild=? LIMIT 1;")
                 .bind(guild.0)
                 .fetch_optional(mariadb)
                 .await?;
+        let mut guild_config = raw.map(|raw| raw.into());
 
-        let guild_config = raw.map(|raw| raw.into());
-        Ok(guild_config)
+        // 見つからないなら新しく作る
+        if guild_config.is_none() {
+            guild_config = Some(Self::new(mariadb, guild).await?);
+        }
+
+        Ok(guild_config.unwrap())
     }
 
     pub async fn write_back(self, mariadb: &sqlx::mysql::MySqlPool) -> Result<(), Error> {

@@ -31,35 +31,37 @@ pub struct NewMember {
 }
 
 impl NewMember {
-    pub async fn new(
+    async fn new(
         mariadb: &sqlx::mysql::MySqlPool,
         guild: serenity::GuildId,
         user: serenity::UserId,
-    ) -> Self {
+    ) -> Result<Self, Error> {
         let new_member = Self {
             guild,
             user,
             jointime: chrono::offset::Local::now(),
         };
 
+        // DBにエントリーを追加
         let raw: NewMemberSQL = new_member.clone().try_into().unwrap();
-        let _ = sqlx::query(
+        sqlx::query(
             "INSERT INTO member_manager_newmember (guild, user, jointime) VALUES (?, ?, ?)",
         )
         .bind(raw.guild)
         .bind(raw.user)
         .bind(raw.jointime)
         .execute(mariadb)
-        .await;
+        .await?;
 
-        new_member
+        Ok(new_member)
     }
 
     pub async fn get(
         mariadb: &sqlx::mysql::MySqlPool,
         guild: serenity::GuildId,
         user: serenity::UserId,
-    ) -> Result<Option<Self>, Error> {
+    ) -> Result<Self, Error> {
+        // DBから取得する
         let raw: Option<NewMemberSQL> = sqlx::query_as(
             "SELECT * FROM member_manager_newmember WHERE guild=? AND user=? LIMIT 1;",
         )
@@ -68,10 +70,22 @@ impl NewMember {
         .fetch_optional(mariadb)
         .await?;
 
-        match raw {
-            Some(new_member) => Ok(Some(new_member.try_into()?)),
-            None => Ok(None),
+        let mut new_member = None;
+        if let Some(new_member2) = raw {
+            // 変換に成功したらその値をnew_memberに入れ､失敗したらDBのエントリーを削除
+            if let Ok(new_member2) = new_member2.try_into() {
+                new_member = Some(new_member2);
+            } else {
+                Self::remove(mariadb, guild, user).await?;
+            }
+        };
+
+        // DBから見つからなかったor変換に失敗したら再作成
+        if new_member.is_none() {
+            new_member = Some(Self::new(mariadb, guild, user).await?)
         }
+
+        Ok(new_member.unwrap())
     }
 
     pub async fn write_back(self, mariadb: &sqlx::mysql::MySqlPool) -> Result<(), Error> {
