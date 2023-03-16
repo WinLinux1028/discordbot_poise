@@ -77,7 +77,7 @@ pub async fn nade(
 }
 
 // 緑霊夢のニックネームを変更する
-#[poise::command(slash_command, guild_only, required_permissions = "MANAGE_NICKNAMES")]
+#[poise::command(slash_command, guild_only)]
 pub async fn rename(
     ctx: Context<'_>,
     #[description = "新しいニックネーム"] name: Option<String>,
