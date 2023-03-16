@@ -50,7 +50,6 @@ async fn new_bot(data_raw: DataRaw) {
             command::general::ping(),
             command::general::say(),
             command::general::nade(),
-            command::member_manager::member_manager(),
         ],
         ..Default::default()
     };
@@ -87,22 +86,6 @@ impl DataRaw {
         let mariadb = mysql::MySqlPool::connect(&self.mariadb).await?;
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS mutelist (user INT8 UNSIGNED NOT NULL PRIMARY KEY);",
-        )
-        .execute(&mariadb)
-        .await?;
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS guildconfig (
-                guild INT8 UNSIGNED NOT NULL PRIMARY KEY,
-                member_manager_lockdowned BOOLEAN NOT NULL, member_manager_allowlockdown INT8 UNSIGNED, member_manager_memberrole INT8 UNSIGNED, member_manager_kickable INT8 UNSIGNED
-            );",
-        )
-        .execute(&mariadb)
-        .await?;
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS member_manager_newmember (
-                guild INT8 UNSIGNED NOT NULL, user INT8 UNSIGNED NOT NULL, jointime INT8 NOT NULL,
-                PRIMARY KEY (guild, user)
-            );",
         )
         .execute(&mariadb)
         .await?;

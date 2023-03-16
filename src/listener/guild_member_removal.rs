@@ -1,8 +1,4 @@
-use crate::{
-    config::{guild_config::GuildConfig, member_manager::NewMember},
-    listener::Listener,
-    Error,
-};
+use crate::{listener::Listener, Error};
 
 use poise::serenity_prelude::{self as serenity, Mentionable};
 
@@ -13,14 +9,7 @@ impl Listener<'_> {
         user: &serenity::User,
         _member: &Option<serenity::Member>,
     ) {
-        if user.id == self.ctx.cache.current_user().id {
-            let _ = GuildConfig::remove(&self.data.mariadb, *guild).await;
-            let _ = NewMember::remove_guild(&self.data.mariadb, *guild);
-            return;
-        }
-
         let _ = notify_member_removal(self.ctx, guild, user).await;
-        let _ = NewMember::remove(&self.data.mariadb, *guild, user.id).await;
     }
 }
 
