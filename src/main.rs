@@ -40,7 +40,9 @@ async fn main() {
 
 async fn new_bot(data_raw: DataRaw) {
     let options = poise::FrameworkOptions {
-        listener: |ctx, event, fwctx, data| Box::pin(listener::process(ctx, event, fwctx, data)),
+        event_handler: |ctx, event, fwctx, data| {
+            Box::pin(listener::process(ctx, event, fwctx, data))
+        },
         command_check: Some(|ctx| Box::pin(command_check::process(ctx))),
         on_error: |err| Box::pin(on_error::process(err)),
         commands: vec![
@@ -50,6 +52,7 @@ async fn new_bot(data_raw: DataRaw) {
             command::general::ping(),
             command::general::say(),
             command::general::nade(),
+            command::general::rename(),
         ],
         ..Default::default()
     };
@@ -58,9 +61,7 @@ async fn new_bot(data_raw: DataRaw) {
         .options(options)
         .token(data_raw.token.clone())
         .intents(serenity::GatewayIntents::all())
-        .user_data_setup(|ctx, ready, framework| {
-            Box::pin(ready::process(ctx, ready, framework, data_raw))
-        });
+        .setup(|ctx, ready, framework| Box::pin(ready::process(ctx, ready, framework, data_raw)));
 
     framework.run_autosharded().await.unwrap();
 }

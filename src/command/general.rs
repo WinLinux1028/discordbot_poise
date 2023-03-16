@@ -39,7 +39,7 @@ pub async fn say(
     #[description = "BOTに発言させたい文章"] mut content: String,
 ) -> Result<(), Error> {
     content = serenity::content_safe(
-        ctx.discord(),
+        ctx.serenity_context(),
         content,
         &serenity::ContentSafeOptions::default(),
         &[],
@@ -72,6 +72,25 @@ pub async fn nade(
     }
 
     ctx.say(url).await?;
+
+    Ok(())
+}
+
+// 緑霊夢のニックネームを変更する
+#[poise::command(slash_command, guild_only, required_permissions = "MANAGE_NICKNAMES")]
+pub async fn rename(
+    ctx: Context<'_>,
+    #[description = "新しいニックネーム"] name: Option<String>,
+) -> Result<(), Error> {
+    let guild = match ctx.guild_id() {
+        Some(s) => s,
+        None => return Ok(()),
+    };
+
+    guild
+        .edit_nickname(ctx.serenity_context(), name.as_deref())
+        .await?;
+    ctx.say("変更しました").await?;
 
     Ok(())
 }
