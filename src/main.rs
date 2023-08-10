@@ -85,11 +85,9 @@ impl DataRaw {
         }
 
         let psql = postgres::PgPool::connect(&self.psql).await?;
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS mutelist (user INT8 UNSIGNED NOT NULL PRIMARY KEY);",
-        )
-        .execute(&psql)
-        .await?;
+        sqlx::query("CREATE TABLE IF NOT EXISTS mutelist (user TEXT NOT NULL PRIMARY KEY);")
+            .execute(&psql)
+            .await?;
 
         let mut backup = None;
         if let Some(backup_id) = self.backup_id {
