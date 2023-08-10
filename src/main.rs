@@ -1,7 +1,7 @@
 use tokio::io::AsyncReadExt;
 
 use poise::serenity_prelude as serenity;
-use sqlx::mysql;
+use sqlx::postgres;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Context<'a> = poise::Context<'a, Data, Error>;
@@ -73,7 +73,7 @@ struct Config(Vec<DataRaw>);
 pub struct DataRaw {
     token: String,
     globalchat_name: Option<String>,
-    mariadb: String,
+    psql: String,
     backup_id: Option<serenity::ChannelId>,
 }
 
@@ -84,11 +84,11 @@ impl DataRaw {
             globalchat = Some(globalchat::GlobalChat::new(globalchat_name, ctx).await);
         }
 
-        let mariadb = mysql::MySqlPool::connect(&self.mariadb).await?;
+        let psql = postgres::PgPool::connect(&self.psql).await?;
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS mutelist (user INT8 UNSIGNED NOT NULL PRIMARY KEY);",
         )
-        .execute(&mariadb)
+        .execute(&psql)
         .await?;
 
         let mut backup = None;
@@ -102,7 +102,7 @@ impl DataRaw {
 
         Ok(Data {
             globalchat,
-            mariadb,
+            psql,
             backup,
         })
     }
