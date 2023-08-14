@@ -1,3 +1,6 @@
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use tokio::io::AsyncReadExt;
 
 use poise::serenity_prelude as serenity;
