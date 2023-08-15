@@ -11,7 +11,7 @@ use sqlx::Row;
     subcommands("add", "remove")
 )]
 pub async fn mute(ctx: Context<'_>) -> Result<(), Error> {
-    let muted_users = sqlx::query("SELECT (user) FROM mutelist")
+    let muted_users = sqlx::query("SELECT (userid) FROM mutelist")
         .fetch_all(&ctx.data().psql)
         .await?;
     let muted_users: Vec<serenity::UserId> = muted_users
@@ -35,7 +35,7 @@ pub async fn mute(ctx: Context<'_>) -> Result<(), Error> {
 
 #[poise::command(prefix_command, owners_only)]
 pub async fn add(ctx: Context<'_>, user: serenity::UserId) -> Result<(), Error> {
-    sqlx::query("INSERT INTO mutelist(user) VALUES ($1)")
+    sqlx::query("INSERT INTO mutelist(userid) VALUES ($1)")
         .bind(user.0.to_string())
         .execute(&ctx.data().psql)
         .await?;
@@ -46,7 +46,7 @@ pub async fn add(ctx: Context<'_>, user: serenity::UserId) -> Result<(), Error> 
 
 #[poise::command(prefix_command, owners_only)]
 pub async fn remove(ctx: Context<'_>, user: serenity::UserId) -> Result<(), Error> {
-    sqlx::query("DELETE FROM mutelist WHERE user=$1 LIMIT 1")
+    sqlx::query("DELETE FROM mutelist WHERE userid=$1 LIMIT 1")
         .bind(user.0.to_string())
         .execute(&ctx.data().psql)
         .await?;

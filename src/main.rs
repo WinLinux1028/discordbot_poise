@@ -88,7 +88,7 @@ impl DataRaw {
         }
 
         let psql = postgres::PgPool::connect(&self.psql).await?;
-        sqlx::query("CREATE TABLE IF NOT EXISTS mutelist (user TEXT NOT NULL PRIMARY KEY);")
+        sqlx::query("CREATE TABLE IF NOT EXISTS mutelist (userid TEXT NOT NULL PRIMARY KEY);")
             .execute(&psql)
             .await?;
 
