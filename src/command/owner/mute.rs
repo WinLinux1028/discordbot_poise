@@ -46,7 +46,7 @@ pub async fn add(ctx: Context<'_>, user: serenity::UserId) -> Result<(), Error> 
 
 #[poise::command(prefix_command, owners_only)]
 pub async fn remove(ctx: Context<'_>, user: serenity::UserId) -> Result<(), Error> {
-    sqlx::query("DELETE FROM mutelist WHERE userid=$1 LIMIT 1")
+    sqlx::query("DELETE FROM mutelist WHERE userid=$1")
         .bind(user.0.to_string())
         .execute(&ctx.data().psql)
         .await?;
