@@ -20,6 +20,11 @@ impl Listener<'_> {
             }
         }
 
+        if new_message.content.contains('🍎') {
+            let _ = new_message.channel_id.say(self.ctx, "🍏").await;
+            return;
+        }
+
         if let Ok(true) = new_message.mentions_me(self.ctx).await {
             let _ = new_message.channel_id.say(self.ctx, "呼んだ?").await;
         }
