@@ -1,7 +1,9 @@
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-use tokio::io::AsyncReadExt;
+use std::time::Duration;
+
+use tokio::{io::AsyncReadExt, time};
 
 use poise::serenity_prelude as serenity;
 use sqlx::postgres;
@@ -87,7 +89,15 @@ impl DataRaw {
             globalchat = Some(globalchat::GlobalChat::new(globalchat_name, ctx).await);
         }
 
-        let psql = postgres::PgPool::connect(&self.psql).await?;
+        let psql;
+        loop {
+            if let Ok(o) = postgres::PgPool::connect(&self.psql).await {
+                psql = o;
+                break;
+            };
+            time::sleep(Duration::from_secs(1)).await;
+            continue;
+        }
         sqlx::query("CREATE TABLE IF NOT EXISTS mutelist (userid TEXT NOT NULL PRIMARY KEY);")
             .execute(&psql)
             .await?;
