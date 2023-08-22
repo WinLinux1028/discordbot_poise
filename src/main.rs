@@ -3,6 +3,9 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use std::time::Duration;
 
+use oauth2::{
+    basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, RevocationUrl, TokenUrl,
+};
 use tokio::{io::AsyncReadExt, time};
 
 use poise::serenity_prelude as serenity;
@@ -58,6 +61,7 @@ async fn new_bot(data_raw: DataRaw) {
             command::general::say(),
             command::general::nade(),
             command::general::rename(),
+            command::sns_post::sns_post(),
         ],
         ..Default::default()
     };
@@ -80,6 +84,9 @@ pub struct DataRaw {
     globalchat_name: Option<String>,
     psql: String,
     backup_id: Option<serenity::ChannelId>,
+    oauth_redirect_url: Option<String>,
+    twitter_client_id: Option<String>,
+    twitter_client_secret: Option<String>,
 }
 
 impl DataRaw {
@@ -89,18 +96,56 @@ impl DataRaw {
             globalchat = Some(globalchat::GlobalChat::new(globalchat_name, ctx).await);
         }
 
-        let psql;
+        // DBに接続
+        let mut psql;
         loop {
+            let mut result = true;
             if let Ok(o) = postgres::PgPool::connect(&self.psql).await {
                 psql = o;
-                break;
+
+                result &=
+                    sqlx::query("CREATE TABLE IF NOT EXISTS mutelist (userid TEXT PRIMARY KEY);")
+                        .execute(&psql)
+                        .await
+                        .is_ok();
+                result &=
+                    sqlx::query("CREATE TABLE IF NOT EXISTS oauth2_auth (state TEXT PRIMARY KEY, guildid TEXT UNIQUE NOT NULL, channelid TEXT NOT NULL, service TEXT NOT NULL, code_verifier TEXT NOT NULL, expired BIGINT NOT NULL);")
+                        .execute(&psql)
+                        .await
+                        .is_ok();
+                result &=
+                    sqlx::query("CREATE TABLE IF NOT EXISTS oauth2_refresh (service TEXT, refresh TEXT, bearer TEXT NOT NULL, PRIMARY KEY(service, refresh));")
+                        .execute(&psql)
+                        .await
+                        .is_ok();
+                result &=
+                    sqlx::query("CREATE TABLE IF NOT EXISTS sns_post (guildid TEXT, channelid TEXT NOT NULL, twitter_refresh TEXT, mastodon_domain TEXT, mastodon_bearer TEXT, PRIMARY KEY(guildid));")
+                        .execute(&psql)
+                        .await
+                        .is_ok();
+
+                if result {
+                    break;
+                }
             };
             time::sleep(Duration::from_secs(1)).await;
             continue;
         }
-        sqlx::query("CREATE TABLE IF NOT EXISTS mutelist (userid TEXT NOT NULL PRIMARY KEY);")
-            .execute(&psql)
-            .await?;
+
+        // DBのクリーンアップ
+        let psql2 = psql.clone();
+        tokio::spawn(async move {
+            let psql = psql2;
+            loop {
+                time::sleep(Duration::from_secs(60 * 3)).await;
+                let time = chrono::Local::now().timestamp();
+
+                let _ = sqlx::query("DELETE FROM oauth2_auth WHERE expired<=$1;")
+                    .bind(time)
+                    .execute(&psql)
+                    .await;
+            }
+        });
 
         let mut backup = None;
         if let Some(backup_id) = self.backup_id {
@@ -111,10 +156,33 @@ impl DataRaw {
             }
         }
 
+        let oauth_redirect_url = self.oauth_redirect_url.clone();
+        let mut twitter_client = None;
+        if let Some(oauth_redirect_url) = self.oauth_redirect_url {
+            if let Some(twitter_client_id) = self.twitter_client_id {
+                twitter_client = Some(
+                    BasicClient::new(
+                        ClientId::new(twitter_client_id),
+                        self.twitter_client_secret.map(ClientSecret::new),
+                        AuthUrl::new("https://twitter.com/i/oauth2/authorize".to_string())?,
+                        Some(TokenUrl::new(
+                            "https://api.twitter.com/2/oauth2/token".to_string(),
+                        )?),
+                    )
+                    .set_revocation_uri(RevocationUrl::new(
+                        "https://api.twitter.com/2/oauth2/revoke".to_string(),
+                    )?)
+                    .set_redirect_uri(RedirectUrl::new(oauth_redirect_url)?),
+                );
+            }
+        }
+
         Ok(Data {
             globalchat,
             psql,
             backup,
+            oauth_redirect_url,
+            twitter_client,
         })
     }
 }
