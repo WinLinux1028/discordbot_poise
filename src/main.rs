@@ -84,7 +84,7 @@ pub struct DataRaw {
     globalchat_name: Option<String>,
     psql: String,
     backup_id: Option<serenity::ChannelId>,
-    oauth_redirect_url: Option<String>,
+    hostname: Option<String>,
     twitter_client_id: Option<String>,
     twitter_client_secret: Option<String>,
 }
@@ -156,9 +156,8 @@ impl DataRaw {
             }
         }
 
-        let oauth_redirect_url = self.oauth_redirect_url.clone();
         let mut twitter_client = None;
-        if let Some(oauth_redirect_url) = self.oauth_redirect_url {
+        if let Some(hostname) = &self.hostname {
             if let Some(twitter_client_id) = self.twitter_client_id {
                 twitter_client = Some(
                     BasicClient::new(
@@ -172,7 +171,7 @@ impl DataRaw {
                     .set_revocation_uri(RevocationUrl::new(
                         "https://api.twitter.com/2/oauth2/revoke".to_string(),
                     )?)
-                    .set_redirect_uri(RedirectUrl::new(oauth_redirect_url)?),
+                    .set_redirect_uri(RedirectUrl::new(format!("https://{}/oauth", hostname))?),
                 );
             }
         }
@@ -181,7 +180,7 @@ impl DataRaw {
             globalchat,
             psql,
             backup,
-            oauth_redirect_url,
+            hostname: self.hostname,
             twitter_client,
         })
     }

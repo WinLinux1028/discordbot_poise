@@ -5,6 +5,10 @@
         "globalchat_name": "hoge_global",
         "psql": "postgres://user:pass@hostname/botdb",
         "backup_id": 36493145450721 // バックアップ先のカテゴリのID
+        "listen": "127.0.0.1:8080", // BOTの認証サーバーでlistenするアドレスとポート
+        "hostname": "bot.example.com", // BOTの認証サーバーを動かしているホスト名
+        "twitter_client_id": "CLIENT_ID",
+        "twitter_client_secret": "CLIENT_SECRET"
     },
     {
         // BOT2以降(オプション)

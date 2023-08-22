@@ -6,7 +6,7 @@ pub struct Data {
     pub globalchat: Option<crate::globalchat::GlobalChat>,
     pub psql: postgres::PgPool,
     pub backup: Option<serenity::ChannelCategory>,
-    pub oauth_redirect_url: Option<String>,
+    pub hostname: Option<String>,
     pub twitter_client: Option<BasicClient>,
 }
 
