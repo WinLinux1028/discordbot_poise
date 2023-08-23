@@ -1,4 +1,5 @@
-use crate::{listener::Listener, Error};
+use super::Listener;
+use crate::Error;
 
 use poise::serenity_prelude::{self as serenity, Mentionable};
 

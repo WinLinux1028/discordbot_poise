@@ -1,9 +1,13 @@
+pub mod backup;
+pub mod globalchat;
+pub mod sns_post;
+
 use oauth2::basic::BasicClient;
 use poise::serenity_prelude as serenity;
 use sqlx::postgres;
 
 pub struct Data {
-    pub globalchat: Option<crate::globalchat::GlobalChat>,
+    pub globalchat: Option<globalchat::GlobalChat>,
     pub psql: postgres::PgPool,
     pub backup: Option<serenity::ChannelCategory>,
     pub hostname: Option<String>,

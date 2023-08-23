@@ -1,30 +1,26 @@
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-use std::time::Duration;
-
-use oauth2::{
-    basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, RevocationUrl, TokenUrl,
-};
-use tokio::{io::AsyncReadExt, time};
-
-use poise::serenity_prelude as serenity;
-use sqlx::postgres;
-
-pub type Error = Box<dyn std::error::Error + Send + Sync>;
-pub type Context<'a> = poise::Context<'a, Data, Error>;
-
+use crate::data::{globalchat::GlobalChat, Data};
 pub mod command;
-pub mod features;
-use features::*;
-
-use crate::config::data::Data;
-pub mod config;
+pub mod data;
 
 mod command_check;
 mod listener;
 mod on_error;
 mod ready;
+
+use std::time::Duration;
+use tokio::{io::AsyncReadExt, time};
+
+use oauth2::{
+    basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, RevocationUrl, TokenUrl,
+};
+use poise::serenity_prelude as serenity;
+use sqlx::postgres;
+
+pub type Error = Box<dyn std::error::Error + Send + Sync>;
+pub type Context<'a> = poise::Context<'a, Data, Error>;
 
 #[tokio::main]
 async fn main() {
@@ -93,13 +89,14 @@ impl DataRaw {
     pub async fn into_data(self, ctx: &serenity::Context) -> Result<Data, Error> {
         let mut globalchat = None;
         if let Some(globalchat_name) = self.globalchat_name {
-            globalchat = Some(globalchat::GlobalChat::new(globalchat_name, ctx).await);
+            globalchat = Some(GlobalChat::new(globalchat_name, ctx).await);
         }
 
         // DBに接続
         let mut psql;
         loop {
             let mut result = true;
+
             if let Ok(o) = postgres::PgPool::connect(&self.psql).await {
                 psql = o;
 
@@ -119,7 +116,7 @@ impl DataRaw {
                         .await
                         .is_ok();
                 result &=
-                    sqlx::query("CREATE TABLE IF NOT EXISTS sns_post (guildid TEXT, channelid TEXT NOT NULL, twitter_refresh TEXT, mastodon_domain TEXT, mastodon_bearer TEXT, PRIMARY KEY(guildid));")
+                    sqlx::query("CREATE TABLE IF NOT EXISTS sns_post (guildid TEXT PRIMARY KEY, channelid TEXT NOT NULL, twitter_refresh TEXT, mastodon_domain TEXT, mastodon_bearer TEXT);")
                         .execute(&psql)
                         .await
                         .is_ok();

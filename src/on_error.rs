@@ -65,6 +65,18 @@ pub async fn process(err: poise::FrameworkError<'_, Data, Error>) {
                 .await;
         }
 
+        CooldownHit {
+            remaining_cooldown,
+            ctx,
+        } => {
+            let _ = Context::from(ctx)
+                .say(format!(
+                    "{}秒後に再試行してください",
+                    remaining_cooldown.as_secs()
+                ))
+                .await;
+        }
+
         _ => {}
     }
 }

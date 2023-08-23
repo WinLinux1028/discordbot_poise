@@ -1,11 +1,11 @@
-use std::sync::Arc;
-
+use super::GlobalChat;
 use crate::Error;
 
-use crate::features::*;
+use std::sync::Arc;
+
 use poise::serenity_prelude as serenity;
 
-impl globalchat::GlobalChat {
+impl GlobalChat {
     pub async fn send_msg(
         &self,
         ctx: &serenity::Context,

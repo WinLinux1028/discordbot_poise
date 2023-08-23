@@ -1,9 +1,9 @@
+use super::GlobalChat;
 use crate::Error;
 
-use crate::features::*;
 use poise::serenity_prelude as serenity;
 
-impl globalchat::GlobalChat {
+impl GlobalChat {
     pub async fn set_channel(
         &self,
         ctx: &serenity::Context,

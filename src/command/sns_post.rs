@@ -1,6 +1,6 @@
-use oauth2::{AuthorizationRequest, CsrfToken, PkceCodeChallenge, Scope};
-
 use crate::{Context, Error};
+
+use oauth2::{AuthorizationRequest, CsrfToken, PkceCodeChallenge, Scope};
 
 #[poise::command(
     slash_command,
@@ -24,7 +24,7 @@ pub async fn twitter(_: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-#[poise::command(prefix_command, rename = "set")]
+#[poise::command(prefix_command, rename = "set", guild_cooldown = 360)]
 pub async fn twitter_set(ctx: Context<'_>) -> Result<(), Error> {
     if let Some(twitter_client) = &ctx.data().twitter_client {
         let oauth = twitter_client
@@ -41,17 +41,17 @@ pub async fn twitter_set(ctx: Context<'_>) -> Result<(), Error> {
     }
 }
 
-#[poise::command(prefix_command, rename = "disable")]
+#[poise::command(prefix_command, rename = "disable", guild_cooldown = 360)]
 pub async fn twitter_disable(ctx: Context<'_>) -> Result<(), Error> {
-    let guildid = ctx.guild_id().unwrap().0.to_string();
+    let guild = ctx.guild_id().unwrap().0.to_string();
     let mut trx = ctx.data().psql.begin().await?;
 
     sqlx::query("DELETE FROM oauth2_refresh WHERE service='twitter.com' AND refresh=(SELECT twitter_refresh FROM sns_post WHERE guildid=$1);")
-        .bind(&guildid)
+        .bind(&guild)
         .execute(&mut *trx)
         .await?;
     sqlx::query("UPDATE sns_post SET twitter_refresh=NULL WHERE guildid=$1;")
-        .bind(&guildid)
+        .bind(&guild)
         .execute(&mut *trx)
         .await?;
 
@@ -71,8 +71,8 @@ pub async fn set(
     hostname: &str,
     oauth: AuthorizationRequest<'_>,
 ) -> Result<(), Error> {
-    let guildid = ctx.guild_id().unwrap().0.to_string();
-    let channelid = ctx.channel_id().0.to_string();
+    let guild = ctx.guild_id().unwrap().0.to_string();
+    let channel = ctx.channel_id().0.to_string();
 
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
     let (url, state) = oauth.set_pkce_challenge(pkce_challenge).url();
@@ -80,8 +80,8 @@ pub async fn set(
     let time = chrono::Local::now().timestamp();
     sqlx::query("INSERT INTO oauth2_auth(state, guildid, channelid, service, code_verifier, expired) VALUES ($1, $2, $3, $4, $5, $6);")
         .bind(state.secret())
-        .bind(&guildid)
-        .bind(&channelid)
+        .bind(&guild)
+        .bind(&channel)
         .bind(hostname)
         .bind(pkce_verifier.secret())
         .bind(time + 60 * 3)

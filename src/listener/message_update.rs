@@ -1,4 +1,5 @@
-use crate::listener::Listener;
+use super::Listener;
+use crate::data::backup;
 
 use poise::serenity_prelude as serenity;
 
@@ -27,6 +28,6 @@ impl Listener<'_> {
             return;
         }
 
-        crate::features::backup::backup(self.ctx, self.data, old, 0x00FF00, "編集").await;
+        backup::backup(self.ctx, self.data, old, 0x00FF00, "編集").await;
     }
 }

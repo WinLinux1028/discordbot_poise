@@ -1,12 +1,12 @@
-use std::collections::HashMap;
-
+use super::GlobalChat;
 use crate::Error;
 
-use crate::features::*;
+use std::collections::HashMap;
+
 use poise::serenity_prelude as serenity;
 use tokio_stream::StreamExt;
 
-impl globalchat::GlobalChat {
+impl GlobalChat {
     pub async fn collect_webhooks(&self, ctx: &serenity::Context) -> Result<(), Error> {
         *self.webhook.write().await = HashMap::new();
 

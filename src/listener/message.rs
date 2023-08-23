@@ -1,4 +1,4 @@
-use crate::listener::Listener;
+use super::Listener;
 
 use poise::serenity_prelude as serenity;
 
@@ -9,9 +9,9 @@ impl Listener<'_> {
         }
 
         if let Some(globalchat) = &self.data.globalchat {
-            if let Some(guild_id) = new_message.guild_id {
+            if let Some(guild) = new_message.guild_id {
                 if globalchat
-                    .is_globalchat(guild_id, new_message.channel_id)
+                    .is_globalchat(guild, new_message.channel_id)
                     .await
                 {
                     let _ = globalchat.send_msg(self.ctx, new_message).await;

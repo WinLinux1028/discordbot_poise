@@ -1,6 +1,6 @@
-use poise::serenity_prelude as serenity;
+use crate::{data::Data, Error};
 
-use crate::{config::data::Data, Error};
+use poise::serenity_prelude as serenity;
 
 pub async fn process(
     ctx: &serenity::Context,

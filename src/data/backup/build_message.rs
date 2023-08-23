@@ -46,8 +46,8 @@ pub async fn process<'a>(
     // 最初のembedにはメッセージの本文を入れる
     embeds[0].description(&message.content);
 
-    let mut msg = serenity::CreateMessage::default();
-    msg.set_embeds(embeds);
+    let mut message = serenity::CreateMessage::default();
+    message.set_embeds(embeds);
 
-    Some(msg)
+    Some(message)
 }

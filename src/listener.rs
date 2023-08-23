@@ -51,21 +51,21 @@ pub async fn process<'a>(
             listener.message(new_message).await;
         }
         MessageDelete {
-            channel_id,
-            deleted_message_id,
-            guild_id,
+            channel_id: channel,
+            deleted_message_id: deleted_message,
+            guild_id: guild,
         } => {
             listener
-                .message_delete(channel_id, deleted_message_id, guild_id)
+                .message_delete(channel, deleted_message, guild)
                 .await;
         }
         MessageDeleteBulk {
-            channel_id,
+            channel_id: channel,
             multiple_deleted_messages_ids,
-            guild_id,
+            guild_id: guild,
         } => {
             listener
-                .message_delete_bulk(channel_id, multiple_deleted_messages_ids, guild_id)
+                .message_delete_bulk(channel, multiple_deleted_messages_ids, guild)
                 .await
         }
         MessageUpdate {
