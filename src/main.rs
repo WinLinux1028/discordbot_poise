@@ -6,6 +6,7 @@ pub mod command;
 pub mod data;
 
 mod command_check;
+mod http_server;
 mod listener;
 mod on_error;
 mod ready;
@@ -77,21 +78,17 @@ struct Config(Vec<DataRaw>);
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct DataRaw {
     token: String,
-    globalchat_name: Option<String>,
     psql: String,
+    globalchat_name: Option<String>,
     backup_id: Option<serenity::ChannelId>,
-    hostname: Option<String>,
     twitter_client_id: Option<String>,
     twitter_client_secret: Option<String>,
+    listen: Option<String>,
+    hostname: Option<String>,
 }
 
 impl DataRaw {
     pub async fn into_data(self, ctx: &serenity::Context) -> Result<Data, Error> {
-        let mut globalchat = None;
-        if let Some(globalchat_name) = self.globalchat_name {
-            globalchat = Some(GlobalChat::new(globalchat_name, ctx).await);
-        }
-
         // DBに接続
         let mut psql;
         loop {
@@ -105,21 +102,30 @@ impl DataRaw {
                         .execute(&psql)
                         .await
                         .is_ok();
-                result &=
-                    sqlx::query("CREATE TABLE IF NOT EXISTS oauth2_auth (state TEXT PRIMARY KEY, guildid TEXT UNIQUE NOT NULL, channelid TEXT NOT NULL, service TEXT NOT NULL, code_verifier TEXT NOT NULL, expired BIGINT NOT NULL);")
-                        .execute(&psql)
-                        .await
-                        .is_ok();
-                result &=
-                    sqlx::query("CREATE TABLE IF NOT EXISTS oauth2_refresh (service TEXT, refresh TEXT, bearer TEXT NOT NULL, PRIMARY KEY(service, refresh));")
-                        .execute(&psql)
-                        .await
-                        .is_ok();
-                result &=
-                    sqlx::query("CREATE TABLE IF NOT EXISTS sns_post (guildid TEXT PRIMARY KEY, channelid TEXT NOT NULL, twitter_refresh TEXT, mastodon_domain TEXT, mastodon_bearer TEXT);")
-                        .execute(&psql)
-                        .await
-                        .is_ok();
+                result &= sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS oauth2_state (
+                            state TEXT PRIMARY KEY,
+                            guildid TEXT UNIQUE NOT NULL, channelid TEXT NOT NULL,
+                            service TEXT NOT NULL, domain TEXT NOT NULL,
+                            code_verifier TEXT NOT NULL, expires BIGINT NOT NULL,
+                            client_id TEXT, client_secret TEXT
+                        );",
+                )
+                .execute(&psql)
+                .await
+                .is_ok();
+                result &= sqlx::query(
+                    "CREATE TABLE IF NOT EXISTS sns_post (
+                            guildid TEXT, service TEXT,
+                            domain TEXT NOT NULL, channelid TEXT NOT NULL,
+                            refresh TEXT, bearer TEXT NOT NULL, expires BIGINT,
+                            client_id TEXT, client_secret TEXT,
+                            PRIMARY KEY (guildid, service)
+                        );",
+                )
+                .execute(&psql)
+                .await
+                .is_ok();
 
                 if result {
                     break;
@@ -137,12 +143,17 @@ impl DataRaw {
                 time::sleep(Duration::from_secs(60 * 3)).await;
                 let time = chrono::Local::now().timestamp();
 
-                let _ = sqlx::query("DELETE FROM oauth2_auth WHERE expired<=$1;")
+                let _ = sqlx::query("DELETE FROM oauth2_auth WHERE expires<=$1;")
                     .bind(time)
                     .execute(&psql)
                     .await;
             }
         });
+
+        let mut globalchat = None;
+        if let Some(globalchat_name) = self.globalchat_name {
+            globalchat = Some(GlobalChat::new(globalchat_name, ctx).await);
+        }
 
         let mut backup = None;
         if let Some(backup_id) = self.backup_id {
@@ -155,21 +166,29 @@ impl DataRaw {
 
         let mut twitter_client = None;
         if let Some(hostname) = &self.hostname {
-            if let Some(twitter_client_id) = self.twitter_client_id {
-                twitter_client = Some(
-                    BasicClient::new(
-                        ClientId::new(twitter_client_id),
-                        self.twitter_client_secret.map(ClientSecret::new),
-                        AuthUrl::new("https://twitter.com/i/oauth2/authorize".to_string())?,
-                        Some(TokenUrl::new(
-                            "https://api.twitter.com/2/oauth2/token".to_string(),
-                        )?),
-                    )
-                    .set_revocation_uri(RevocationUrl::new(
-                        "https://api.twitter.com/2/oauth2/revoke".to_string(),
-                    )?)
-                    .set_redirect_uri(RedirectUrl::new(format!("https://{}/oauth", hostname))?),
-                );
+            if let Some(listen) = self.listen {
+                if let Some(twitter_client_id) = self.twitter_client_id {
+                    twitter_client = Some(
+                        BasicClient::new(
+                            ClientId::new(twitter_client_id),
+                            self.twitter_client_secret.map(ClientSecret::new),
+                            AuthUrl::new("https://twitter.com/i/oauth2/authorize".to_string())?,
+                            Some(TokenUrl::new(
+                                "https://api.twitter.com/2/oauth2/token".to_string(),
+                            )?),
+                        )
+                        .set_revocation_uri(RevocationUrl::new(
+                            "https://api.twitter.com/2/oauth2/revoke".to_string(),
+                        )?)
+                        .set_redirect_uri(RedirectUrl::new(format!("https://{}/oauth", hostname))?),
+                    );
+                }
+
+                let twitter_client = twitter_client.clone();
+                let psql = psql.clone();
+                tokio::spawn(async move {
+                    http_server::start(listen, psql, twitter_client).await;
+                });
             }
         }
 

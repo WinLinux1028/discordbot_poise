@@ -1,6 +1,6 @@
 use crate::{Context, Error};
 
-use oauth2::{AuthorizationRequest, CsrfToken, PkceCodeChallenge, Scope};
+use oauth2::{CsrfToken, PkceCodeChallenge, PkceCodeVerifier, Scope};
 
 #[poise::command(
     slash_command,
@@ -26,39 +26,31 @@ pub async fn twitter(_: Context<'_>) -> Result<(), Error> {
 
 #[poise::command(prefix_command, rename = "set", guild_cooldown = 360)]
 pub async fn twitter_set(ctx: Context<'_>) -> Result<(), Error> {
-    if let Some(twitter_client) = &ctx.data().twitter_client {
-        let oauth = twitter_client
-            .authorize_url(CsrfToken::new_random)
-            .add_scope(Scope::new("tweet.read".to_string()))
-            .add_scope(Scope::new("tweet.write".to_string()))
-            .add_scope(Scope::new("users.read".to_string()))
-            .add_scope(Scope::new("offline.access".to_string()));
+    let client = match ctx.data().twitter_client.as_ref() {
+        Some(c) => c,
+        None => return Err("Twitter連携機能が無効になっています".into()),
+    };
 
-        set(ctx, "twitter.com", oauth).await
-    } else {
-        ctx.say("Twitter連携は無効です").await?;
-        Ok(())
-    }
+    let (pkce_challenge, code_verifier) = PkceCodeChallenge::new_random_sha256();
+    let (url, state) = client
+        .authorize_url(CsrfToken::new_random)
+        .set_pkce_challenge(pkce_challenge)
+        .add_scope(Scope::new("tweet.read".to_string()))
+        .add_scope(Scope::new("tweet.write".to_string()))
+        .add_scope(Scope::new("users.read".to_string()))
+        .add_scope(Scope::new("offline.access".to_string()))
+        .url();
+
+    set(&ctx, "Twitter", "twitter.com", &state, &code_verifier).await?;
+    ctx.say(format!("ここで認証してください:\n{}", url.as_str()))
+        .await?;
+
+    Ok(())
 }
 
 #[poise::command(prefix_command, rename = "disable", guild_cooldown = 360)]
 pub async fn twitter_disable(ctx: Context<'_>) -> Result<(), Error> {
-    let guild = ctx.guild_id().unwrap().0.to_string();
-    let mut trx = ctx.data().psql.begin().await?;
-
-    sqlx::query("DELETE FROM oauth2_refresh WHERE service='twitter.com' AND refresh=(SELECT twitter_refresh FROM sns_post WHERE guildid=$1);")
-        .bind(&guild)
-        .execute(&mut *trx)
-        .await?;
-    sqlx::query("UPDATE sns_post SET twitter_refresh=NULL WHERE guildid=$1;")
-        .bind(&guild)
-        .execute(&mut *trx)
-        .await?;
-
-    trx.commit().await?;
-
-    ctx.say("無効化しました").await?;
-    Ok(())
+    disable(&ctx, "Twitter").await
 }
 
 #[poise::command(slash_command)]
@@ -66,30 +58,49 @@ pub async fn mastodon(_: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn set(
-    ctx: Context<'_>,
-    hostname: &str,
-    oauth: AuthorizationRequest<'_>,
+async fn set(
+    ctx: &Context<'_>,
+    service: &str,
+    domain: &str,
+    state: &CsrfToken,
+    code_verifier: &PkceCodeVerifier,
 ) -> Result<(), Error> {
-    let guild = ctx.guild_id().unwrap().0.to_string();
-    let channel = ctx.channel_id().0.to_string();
+    let guild = match ctx.guild_id() {
+        Some(g) => g,
+        None => return Err("サーバー内でのみ実行できます".into()),
+    };
 
-    let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
-    let (url, state) = oauth.set_pkce_challenge(pkce_challenge).url();
+    sqlx::query(
+        "INSERT INTO
+        oauth2_state (state, guildid, channelid, service, domain, code_verifier, expires)
+        VALUES ($1, $2, $3, $4, $5, $6, $7);",
+    )
+    .bind(state.secret())
+    .bind(guild.0.to_string())
+    .bind(ctx.channel_id().0.to_string())
+    .bind(service)
+    .bind(domain)
+    .bind(code_verifier.secret())
+    .bind(chrono::Local::now().timestamp() + 60 * 3)
+    .execute(&ctx.data().psql)
+    .await?;
 
-    let time = chrono::Local::now().timestamp();
-    sqlx::query("INSERT INTO oauth2_auth(state, guildid, channelid, service, code_verifier, expired) VALUES ($1, $2, $3, $4, $5, $6);")
-        .bind(state.secret())
-        .bind(&guild)
-        .bind(&channel)
-        .bind(hostname)
-        .bind(pkce_verifier.secret())
-        .bind(time + 60 * 3)
+    Ok(())
+}
+
+async fn disable(ctx: &Context<'_>, service: &str) -> Result<(), Error> {
+    let guild = match ctx.guild_id() {
+        Some(g) => g,
+        None => return Err("サーバー内でのみ実行できます".into()),
+    };
+
+    sqlx::query("DELETE FROM sns_post WHERE guildid=$1 AND service=$2;")
+        .bind(guild.0.to_string())
+        .bind(service)
         .execute(&ctx.data().psql)
         .await?;
 
-    ctx.say(format!("ここで認証を行ってください:\n{}", url))
-        .await?;
+    ctx.say("無効化しました").await?;
 
     Ok(())
 }
