@@ -9,15 +9,7 @@ pub async fn post(data: &Data, message: &serenity::Message) -> Result<(), Error>
     let guild = message.guild_id.ok_or("")?;
     let client = data.twitter_client.as_ref().ok_or("")?;
 
-    let token = Token::get_token(
-        &data.psql,
-        guild,
-        message.channel_id,
-        "twitter.com",
-        "Twitter",
-        client,
-    )
-    .await?;
+    let token = Token::get_token(&data.psql, guild, message.channel_id, "Twitter", client).await?;
     let api = TwitterApi::new(authorization::BearerToken::new(token.bearer));
 
     let (mut len, mut text) = cut(message.content.trim());

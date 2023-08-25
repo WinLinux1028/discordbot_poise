@@ -29,8 +29,8 @@ async fn run_(state: Server, query: OAuthQuery) -> Result<Response, Error> {
         crate::data::sns_post::mastodon::get_client(
             &state.hostname,
             &oauth_state.domain,
-            oauth_state.client_id.ok_or("")?,
-            oauth_state.client_secret.ok_or("")?,
+            oauth_state.client_id.clone().ok_or("")?,
+            oauth_state.client_secret.clone().ok_or("")?,
         )?
     } else {
         return Err("".into());
@@ -56,6 +56,8 @@ async fn run_(state: Server, query: OAuthQuery) -> Result<Response, Error> {
             &oauth_state.channelid,
             &oauth_state.domain,
             &oauth_state.service,
+            oauth_state.client_id.as_deref(),
+            oauth_state.client_secret.as_deref(),
         )
         .await?;
     sqlx::query("DELETE FROM oauth2_state WHERE state=$1;")

@@ -50,7 +50,6 @@ impl Token {
         psql: &PgPool,
         guild: serenity::GuildId,
         channel: serenity::ChannelId,
-        domain: &str,
         service: &str,
         client: &BasicClient,
     ) -> Result<Token, Error> {
@@ -87,9 +86,7 @@ impl Token {
                 };
 
                 let mut trx = psql.begin().await?;
-                token
-                    .db_insert(&mut trx, &guild_str, &channel_str, domain, service)
-                    .await?;
+                token.db_update(&mut trx, &guild_str, &channel_str).await?;
                 trx.commit().await?;
             }
         }
@@ -97,6 +94,25 @@ impl Token {
         Ok(token)
     }
 
+    pub async fn db_update(
+        &self,
+        psql: &mut PgConnection,
+        guild: &str,
+        channel: &str,
+    ) -> Result<(), Error> {
+        sqlx::query("UPDATE sns_post SET refresh=$1, bearer=$2, expires=$3 WHERE guildid=$4 AND service=$5;")
+            .bind(&self.refresh)
+            .bind(&self.bearer)
+            .bind(self.expires)
+            .bind(guild)
+            .bind(channel)
+            .execute(psql)
+            .await?;
+
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub async fn db_insert(
         &self,
         psql: &mut PgConnection,
@@ -104,12 +120,14 @@ impl Token {
         channel: &str,
         domain: &str,
         service: &str,
+        client_id: Option<&str>,
+        client_secret: Option<&str>,
     ) -> Result<(), Error> {
         sqlx::query(
-            "INSERT INTO sns_post (guildid, service, domain, channelid, refresh, bearer, expires)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "INSERT INTO sns_post (guildid, service, domain, channelid, refresh, bearer, expires, client_id, client_secret)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 ON CONFLICT (guildid, service)
-                DO UPDATE SET refresh=$5, bearer=$6, expires=$7;",
+                DO UPDATE SET refresh=$5, bearer=$6, expires=$7 client_id=$8, client_secret=$9;",
         )
         .bind(guild)
         .bind(service)
@@ -118,6 +136,8 @@ impl Token {
         .bind(&self.refresh)
         .bind(&self.bearer)
         .bind(self.expires)
+        .bind(client_id)
+        .bind(client_secret)
         .execute(psql)
         .await?;
 
