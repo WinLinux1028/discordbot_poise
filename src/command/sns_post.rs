@@ -42,7 +42,16 @@ pub async fn twitter_set(ctx: Context<'_>) -> Result<(), Error> {
         .add_scope(Scope::new("offline.access".to_string()))
         .url();
 
-    set(&ctx, "Twitter", "twitter.com", &state, &code_verifier).await?;
+    set(
+        &ctx,
+        "Twitter",
+        "twitter.com",
+        &state,
+        &code_verifier,
+        None,
+        None,
+    )
+    .await?;
     ctx.say(format!("ここで認証してください:\n{}", url.as_str()))
         .await?;
 
@@ -86,19 +95,27 @@ pub async fn mastodon_set(ctx: Context<'_>, domain: String) -> Result<(), Error>
     let client = crate::data::sns_post::mastodon::get_client(
         &bot_hostname,
         &domain,
-        app.client_id,
-        app.client_secret,
+        app.client_id.clone(),
+        app.client_secret.clone(),
     )?;
 
     let (pkce_challenge, code_verifier) = PkceCodeChallenge::new_random_sha256();
     let (url, state) = client
         .authorize_url(CsrfToken::new_random)
         .set_pkce_challenge(pkce_challenge)
-        .add_scope(Scope::new("write:statuses".to_string()))
-        .add_scope(Scope::new("write:media".to_string()))
+        .add_scope(Scope::new("write".to_string()))
         .url();
 
-    set(&ctx, "Mastodon", &domain, &state, &code_verifier).await?;
+    set(
+        &ctx,
+        "Mastodon",
+        &domain,
+        &state,
+        &code_verifier,
+        Some(&app.client_id),
+        Some(&app.client_secret),
+    )
+    .await?;
     ctx.say(format!("ここで認証してください:\n{}", url.as_str()))
         .await?;
 
@@ -116,6 +133,8 @@ async fn set(
     domain: &str,
     state: &CsrfToken,
     code_verifier: &PkceCodeVerifier,
+    client_id: Option<&str>,
+    client_secret: Option<&str>,
 ) -> Result<(), Error> {
     let guild = match ctx.guild_id() {
         Some(g) => g,
@@ -124,8 +143,8 @@ async fn set(
 
     sqlx::query(
         "INSERT INTO
-        oauth2_state (state, guildid, channelid, service, domain, code_verifier, expires)
-        VALUES ($1, $2, $3, $4, $5, $6, $7);",
+        oauth2_state (state, guildid, channelid, service, domain, code_verifier, expires, client_id, client_secret)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);",
     )
     .bind(state.secret())
     .bind(guild.0.to_string())
@@ -134,6 +153,8 @@ async fn set(
     .bind(domain)
     .bind(code_verifier.secret())
     .bind(chrono::Local::now().timestamp() + 60 * 3)
+    .bind(client_id)
+    .bind(client_secret)
     .execute(&ctx.data().psql)
     .await?;
 

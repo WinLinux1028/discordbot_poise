@@ -143,7 +143,7 @@ impl DataRaw {
                 time::sleep(Duration::from_secs(60 * 3)).await;
                 let time = chrono::Local::now().timestamp();
 
-                let _ = sqlx::query("DELETE FROM oauth2_auth WHERE expires<=$1;")
+                let _ = sqlx::query("DELETE FROM oauth2_state WHERE expires<=$1;")
                     .bind(time)
                     .execute(&psql)
                     .await;

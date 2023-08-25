@@ -17,12 +17,14 @@ pub async fn post(data: &Data, message: &serenity::Message) -> Result<(), Error>
             .fetch_optional(&data.psql)
             .await?
             .ok_or("token not found")?;
+    println!("ccc");
     let client = get_client(
         data.hostname.as_ref().ok_or("")?,
         &domain,
         client_id,
         client_secret,
     )?;
+    println!("bbb");
 
     let token = Token::get_token(
         &data.psql,
