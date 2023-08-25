@@ -127,7 +127,7 @@ impl Token {
             "INSERT INTO sns_post (guildid, service, domain, channelid, refresh, bearer, expires, client_id, client_secret)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                 ON CONFLICT (guildid, service)
-                DO UPDATE SET refresh=$5, bearer=$6, expires=$7 client_id=$8, client_secret=$9;",
+                DO UPDATE SET refresh=$5, bearer=$6, expires=$7, client_id=$8, client_secret=$9;",
         )
         .bind(guild)
         .bind(service)
