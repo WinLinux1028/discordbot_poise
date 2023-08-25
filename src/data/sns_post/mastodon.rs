@@ -1,7 +1,11 @@
+use std::io::Cursor;
+
 use super::Token;
 use crate::{data::Data, Error};
 
-use megalodon::{mastodon::Mastodon, megalodon::PostStatusInputOptions, Megalodon};
+use megalodon::{
+    entities::UploadMedia, mastodon::Mastodon, megalodon::PostStatusInputOptions, Megalodon,
+};
 use oauth2::{
     basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, RevocationUrl, TokenUrl,
 };
@@ -17,14 +21,12 @@ pub async fn post(data: &Data, message: &serenity::Message) -> Result<(), Error>
             .fetch_optional(&data.psql)
             .await?
             .ok_or("token not found")?;
-    println!("ccc");
     let client = get_client(
         data.hostname.as_ref().ok_or("")?,
         &domain,
         client_id,
         client_secret,
     )?;
-    println!("bbb");
 
     let token =
         Token::get_token(&data.psql, guild, message.channel_id, "Mastodon", &client).await?;
@@ -38,18 +40,58 @@ pub async fn post(data: &Data, message: &serenity::Message) -> Result<(), Error>
         .map(|(i, _)| i)
         .collect();
 
-    let option = PostStatusInputOptions::default();
-    // let attachments = Vec::new();
-    // for i in message.attachments {
-    //     content_type = match i.content_type {
-    //         Some(c) => c,
-    //         None => continue,
-    //     };
-    // }
+    let mut option = PostStatusInputOptions::default();
+    let media_ids = get_media_ids(&api, message).await;
+    if !media_ids.is_empty() {
+        option.media_ids = Some(media_ids);
+    }
 
     api.post_status(text, Some(&option)).await?;
 
     Ok(())
+}
+
+async fn get_media_ids(api: &impl Megalodon, message: &serenity::Message) -> Vec<String> {
+    let mut attachments = Vec::new();
+    for i in message.attachments.iter() {
+        let content_type = match i.content_type.as_ref() {
+            Some(s) => s,
+            None => continue,
+        };
+
+        if content_type.starts_with("image/") {
+            attachments.push(i);
+
+            if attachments.len() == 4 {
+                break;
+            }
+        } else if attachments.is_empty()
+            && (content_type.starts_with("audio/") || content_type.starts_with("video/"))
+        {
+            attachments.push(i);
+            break;
+        }
+    }
+
+    let mut media_ids = Vec::new();
+    for i in attachments {
+        let attachment = match i.download().await {
+            Ok(o) => Cursor::new(o),
+            Err(_) => continue,
+        };
+
+        let media = match api.upload_media_reader(Box::new(attachment), None).await {
+            Ok(o) => o,
+            Err(_) => continue,
+        };
+
+        match media.json {
+            UploadMedia::Attachment(a) => media_ids.push(a.id),
+            UploadMedia::AsyncAttachment(a) => media_ids.push(a.id),
+        }
+    }
+
+    media_ids
 }
 
 pub fn get_client(

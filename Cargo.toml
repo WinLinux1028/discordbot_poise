@@ -16,7 +16,7 @@ twitter-v2 = "0.1"
 twitter-text = "0.2"
 twitter_text_config = "0.2"
 
-megalodon = "0.9"
+megalodon = { git = "https://github.com/WinLinux1028/megalodon-rs.git", branch = "master" }
 
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"

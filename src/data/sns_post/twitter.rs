@@ -17,7 +17,7 @@ pub async fn post(data: &Data, message: &serenity::Message) -> Result<(), Error>
         let after_len = len + twitter_text_config::default().transformed_url_length + 1;
         if after_len <= 280 {
             text.push('\n');
-            text.push_str(&i.proxy_url);
+            text.push_str(&i.url);
         }
         len = after_len;
     }
