@@ -85,9 +85,18 @@ async fn get_media_ids(api: &impl Megalodon, message: &serenity::Message) -> Vec
             Err(_) => continue,
         };
 
-        match media.json {
-            UploadMedia::Attachment(a) => media_ids.push(a.id),
-            UploadMedia::AsyncAttachment(a) => media_ids.push(a.id),
+        if let UploadMedia::Attachment(a) = media.json {
+            media_ids.push(a.id)
+        } else if let UploadMedia::AsyncAttachment(a) = media.json {
+            for _ in 0..10 {
+                match api.get_media(a.id.clone()).await {
+                    Ok(o) => {
+                        media_ids.push(o.json.id);
+                        break;
+                    }
+                    Err(_) => tokio::time::sleep(std::time::Duration::from_secs(10)).await,
+                };
+            }
         }
     }
 
