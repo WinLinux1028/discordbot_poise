@@ -37,7 +37,6 @@ async fn run_(state: Server, query: OAuthQuery) -> Result<Response, Error> {
 
     let token = Token::new(
         oauth_state.domain,
-        oauth_state.channelid,
         token.refresh_token(),
         token.access_token(),
         token.expires_in(),
@@ -45,7 +44,12 @@ async fn run_(state: Server, query: OAuthQuery) -> Result<Response, Error> {
 
     let mut trx = state.psql.begin().await?;
     token
-        .db_insert(&mut trx, &oauth_state.guildid, &oauth_state.service)
+        .db_insert(
+            &mut trx,
+            &oauth_state.guildid,
+            &oauth_state.channelid,
+            &oauth_state.service,
+        )
         .await?;
     sqlx::query("DELETE FROM oauth2_state WHERE state=$1;")
         .bind(&query.state)

@@ -20,6 +20,10 @@ impl Listener<'_> {
             }
         }
 
+        if self.data.sns_post(new_message).await {
+            return;
+        }
+
         if new_message.content.contains('🍎') {
             let _ = new_message.channel_id.say(self.ctx, "🍏").await;
             return;
