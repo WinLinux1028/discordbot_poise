@@ -14,7 +14,7 @@ pub async fn process<'a>(
 
     ctx.set_presence(
         Some(serenity::Activity::streaming(
-            "Made by Rust",
+            "Made with Rust",
             "https://www.youtube.com/watch?v=2uquJXO4scY",
         )),
         serenity::OnlineStatus::Online,
