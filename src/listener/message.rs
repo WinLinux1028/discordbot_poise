@@ -20,6 +20,13 @@ impl Listener<'_> {
             }
         }
 
+        if let Some(s) = new_message.attachments.get(0) {
+            match &s.content_type {
+                Some(s) => println!("{}", s),
+                None => println!("no content type"),
+            }
+        }
+
         if self.data.sns_post(new_message).await {
             return;
         }

@@ -7,12 +7,19 @@ use sqlx::PgPool;
 #[derive(Clone)]
 pub struct Server {
     psql: PgPool,
+    hostname: String,
     twitter_client: Option<BasicClient>,
 }
 
-pub async fn start(listen: String, psql: PgPool, twitter_client: Option<BasicClient>) {
+pub async fn start(
+    listen: String,
+    hostname: String,
+    psql: PgPool,
+    twitter_client: Option<BasicClient>,
+) {
     let state = Server {
         psql,
+        hostname,
         twitter_client,
     };
 

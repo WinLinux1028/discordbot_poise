@@ -185,9 +185,10 @@ impl DataRaw {
                 }
 
                 let twitter_client = twitter_client.clone();
+                let hostname = hostname.clone();
                 let psql = psql.clone();
                 tokio::spawn(async move {
-                    http_server::start(listen, psql, twitter_client).await;
+                    http_server::start(listen, hostname, psql, twitter_client).await;
                 });
             }
         }

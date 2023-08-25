@@ -1,4 +1,4 @@
-mod mastodon;
+pub mod mastodon;
 mod twitter;
 
 use super::Data;
@@ -14,64 +14,14 @@ impl Data {
     pub async fn sns_post(&self, message: &serenity::Message) -> bool {
         let mut flag = false;
         flag |= twitter::post(self, message).await.is_ok();
+        flag |= mastodon::post(self, message).await.is_ok();
 
         flag
     }
 }
 
-async fn get_token(
-    psql: &PgPool,
-    guild: serenity::GuildId,
-    channel: serenity::ChannelId,
-    service: &str,
-    client: &BasicClient,
-) -> Result<Token, Error> {
-    let guild_str = guild.0.to_string();
-    let channel_str = channel.0.to_string();
-
-    let mut token: Token = sqlx::query_as("SELECT domain, refresh, bearer, expires FROM sns_post WHERE guildid=$1 AND channelid=$2 AND service=$3 LIMIT 1;")
-            .bind(&guild_str)
-            .bind(&channel_str)
-            .bind(service)
-            .fetch_optional(psql)
-            .await?
-            .ok_or("token not found")?;
-
-    if let Some(expires) = token.expires {
-        let refresh = token
-            .refresh
-            .as_ref()
-            .ok_or("bearer token is expired, but refresh token not found")?;
-
-        if chrono::Local::now().timestamp() > expires {
-            let new_token = client
-                .exchange_refresh_token(&RefreshToken::new(refresh.clone()))
-                .request_async(async_http_client)
-                .await?;
-
-            token.bearer = new_token.access_token().secret().clone();
-            if let Some(refresh) = new_token.refresh_token() {
-                token.refresh = Some(refresh.secret().clone());
-            }
-            token.expires = match new_token.expires_in().map(chrono::Duration::from_std) {
-                Some(d) => Some((chrono::Local::now() + d?).timestamp()),
-                None => None,
-            };
-
-            let mut trx = psql.begin().await?;
-            token
-                .db_insert(&mut trx, &guild_str, &channel_str, service)
-                .await?;
-            trx.commit().await?;
-        }
-    }
-
-    Ok(token)
-}
-
 #[derive(sqlx::FromRow)]
 pub struct Token {
-    pub domain: String,
     pub refresh: Option<String>,
     pub bearer: String,
     pub expires: Option<i64>,
@@ -79,13 +29,11 @@ pub struct Token {
 
 impl Token {
     pub fn new(
-        domain: String,
         refresh: Option<&RefreshToken>,
         bearer: &AccessToken,
         expires_in: Option<std::time::Duration>,
     ) -> Result<Self, Error> {
         let mut result = Self {
-            domain,
             refresh: refresh.map(|t| t.secret().clone()),
             bearer: bearer.secret().clone(),
             expires: None,
@@ -98,12 +46,55 @@ impl Token {
         Ok(result)
     }
 
-    pub fn set_expires(&mut self, expires_in: std::time::Duration) -> Result<(), Error> {
-        let now = chrono::Local::now();
-        let expires_in = chrono::Duration::from_std(expires_in)?;
-        self.expires = Some((now + expires_in).timestamp());
+    pub async fn get_token(
+        psql: &PgPool,
+        guild: serenity::GuildId,
+        channel: serenity::ChannelId,
+        domain: &str,
+        service: &str,
+        client: &BasicClient,
+    ) -> Result<Token, Error> {
+        let guild_str = guild.0.to_string();
+        let channel_str = channel.0.to_string();
 
-        Ok(())
+        let mut token: Token = sqlx::query_as("SELECT domain, refresh, bearer, expires FROM sns_post WHERE guildid=$1 AND channelid=$2 AND service=$3 LIMIT 1;")
+            .bind(&guild_str)
+            .bind(&channel_str)
+            .bind(service)
+            .fetch_optional(psql)
+            .await?
+            .ok_or("token not found")?;
+
+        if let Some(expires) = token.expires {
+            let refresh = token
+                .refresh
+                .as_ref()
+                .ok_or("bearer token expires, but refresh token not found")?;
+
+            if chrono::Local::now().timestamp() > expires {
+                let new_token = client
+                    .exchange_refresh_token(&RefreshToken::new(refresh.clone()))
+                    .request_async(async_http_client)
+                    .await?;
+
+                token.bearer = new_token.access_token().secret().clone();
+                if let Some(refresh) = new_token.refresh_token() {
+                    token.refresh = Some(refresh.secret().clone());
+                }
+                token.expires = match new_token.expires_in().map(chrono::Duration::from_std) {
+                    Some(d) => Some((chrono::Local::now() + d?).timestamp()),
+                    None => None,
+                };
+
+                let mut trx = psql.begin().await?;
+                token
+                    .db_insert(&mut trx, &guild_str, &channel_str, domain, service)
+                    .await?;
+                trx.commit().await?;
+            }
+        }
+
+        Ok(token)
     }
 
     pub async fn db_insert(
@@ -111,6 +102,7 @@ impl Token {
         psql: &mut PgConnection,
         guild: &str,
         channel: &str,
+        domain: &str,
         service: &str,
     ) -> Result<(), Error> {
         sqlx::query(
@@ -121,13 +113,21 @@ impl Token {
         )
         .bind(guild)
         .bind(service)
-        .bind(&self.domain)
+        .bind(domain)
         .bind(channel)
         .bind(&self.refresh)
         .bind(&self.bearer)
         .bind(self.expires)
         .execute(psql)
         .await?;
+
+        Ok(())
+    }
+
+    fn set_expires(&mut self, expires_in: std::time::Duration) -> Result<(), Error> {
+        let now = chrono::Local::now();
+        let expires_in = chrono::Duration::from_std(expires_in)?;
+        self.expires = Some((now + expires_in).timestamp());
 
         Ok(())
     }

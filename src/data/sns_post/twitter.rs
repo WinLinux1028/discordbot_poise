@@ -1,3 +1,4 @@
+use super::Token;
 use crate::{data::Data, Error};
 
 use poise::serenity_prelude as serenity;
@@ -8,10 +9,18 @@ pub async fn post(data: &Data, message: &serenity::Message) -> Result<(), Error>
     let guild = message.guild_id.ok_or("")?;
     let client = data.twitter_client.as_ref().ok_or("")?;
 
-    let token = super::get_token(&data.psql, guild, message.channel_id, "Twitter", client).await?;
+    let token = Token::get_token(
+        &data.psql,
+        guild,
+        message.channel_id,
+        "twitter.com",
+        "Twitter",
+        client,
+    )
+    .await?;
     let api = TwitterApi::new(authorization::BearerToken::new(token.bearer));
 
-    let (mut len, mut text) = cut(&message.content);
+    let (mut len, mut text) = cut(message.content.trim());
     for i in &message.attachments {
         let after_len = len + twitter_text_config::default().transformed_url_length + 1;
         if after_len <= 280 {

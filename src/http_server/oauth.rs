@@ -25,6 +25,13 @@ async fn run_(state: Server, query: OAuthQuery) -> Result<Response, Error> {
 
     let client = if oauth_state.service == "Twitter" {
         state.twitter_client.ok_or("")?
+    } else if oauth_state.service == "Mastodon" {
+        crate::data::sns_post::mastodon::get_client(
+            &state.hostname,
+            &oauth_state.domain,
+            oauth_state.client_id.ok_or("")?,
+            oauth_state.client_secret.ok_or("")?,
+        )?
     } else {
         return Err("".into());
     };
@@ -36,7 +43,6 @@ async fn run_(state: Server, query: OAuthQuery) -> Result<Response, Error> {
         .await?;
 
     let token = Token::new(
-        oauth_state.domain,
         token.refresh_token(),
         token.access_token(),
         token.expires_in(),
@@ -48,6 +54,7 @@ async fn run_(state: Server, query: OAuthQuery) -> Result<Response, Error> {
             &mut trx,
             &oauth_state.guildid,
             &oauth_state.channelid,
+            &oauth_state.domain,
             &oauth_state.service,
         )
         .await?;

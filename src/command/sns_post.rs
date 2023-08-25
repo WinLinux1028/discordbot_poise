@@ -1,5 +1,6 @@
 use crate::{Context, Error};
 
+use megalodon::{mastodon::Mastodon, megalodon::AppInputOptions, Megalodon};
 use oauth2::{CsrfToken, PkceCodeChallenge, PkceCodeVerifier, Scope};
 
 #[poise::command(
@@ -53,9 +54,60 @@ pub async fn twitter_disable(ctx: Context<'_>) -> Result<(), Error> {
     disable(&ctx, "Twitter").await
 }
 
-#[poise::command(slash_command)]
+#[poise::command(slash_command, subcommands("mastodon_set", "mastodon_disable"))]
 pub async fn mastodon(_: Context<'_>) -> Result<(), Error> {
     Ok(())
+}
+
+#[poise::command(slash_command, rename = "set", guild_cooldown = 360)]
+pub async fn mastodon_set(ctx: Context<'_>, domain: String) -> Result<(), Error> {
+    let bot_hostname = ctx.data().hostname.clone().ok_or("")?;
+    let api = Mastodon::new(format!("https://{}", domain), None, None);
+
+    let app_config = AppInputOptions {
+        scopes: Some(vec![
+            "read".to_string(),
+            "write".to_string(),
+            "push".to_string(),
+            "admin:read".to_string(),
+            "admin:write".to_string(),
+        ]),
+        redirect_uris: Some(format!("https://{}/oauth", &bot_hostname)),
+        website: None,
+    };
+
+    let app = api
+        .create_app(
+            format!("{}", &ctx.serenity_context().cache.current_user().name),
+            &app_config,
+        )
+        .await?;
+
+    let client = crate::data::sns_post::mastodon::get_client(
+        &bot_hostname,
+        &domain,
+        app.client_id,
+        app.client_secret,
+    )?;
+
+    let (pkce_challenge, code_verifier) = PkceCodeChallenge::new_random_sha256();
+    let (url, state) = client
+        .authorize_url(CsrfToken::new_random)
+        .set_pkce_challenge(pkce_challenge)
+        .add_scope(Scope::new("write:statuses".to_string()))
+        .add_scope(Scope::new("write:media".to_string()))
+        .url();
+
+    set(&ctx, "Mastodon", &domain, &state, &code_verifier).await?;
+    ctx.say(format!("ここで認証してください:\n{}", url.as_str()))
+        .await?;
+
+    Ok(())
+}
+
+#[poise::command(slash_command, rename = "disable", guild_cooldown = 360)]
+pub async fn mastodon_disable(ctx: Context<'_>) -> Result<(), Error> {
+    disable(&ctx, "Mastodon").await
 }
 
 async fn set(
