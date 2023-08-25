@@ -11,9 +11,12 @@ serde = { version = "1", features = ["derive", "alloc", "rc"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 oauth2 = "4"
+
 twitter-v2 = { version = "0.1", default-features = false, features = [
     "rustls-tls",
 ] }
+twitter-text = "0.2"
+twitter_text_config = "0.2"
 
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
