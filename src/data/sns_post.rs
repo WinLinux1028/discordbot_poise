@@ -89,9 +89,9 @@ impl Token {
                 if let Some(refresh) = new_token.refresh_token() {
                     token.refresh = Some(refresh.secret().clone());
                 }
-                token.expires = match new_token.expires_in().map(chrono::Duration::from_std) {
-                    Some(d) => Some((chrono::Local::now() + d?).timestamp()),
-                    None => None,
+                match new_token.expires_in() {
+                    Some(d) => token.set_expires(d)?,
+                    None => token.expires = None,
                 };
 
                 let mut trx = psql.begin().await?;
