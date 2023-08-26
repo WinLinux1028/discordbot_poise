@@ -31,8 +31,7 @@ pub async fn post(data: &Data, message: &serenity::Message) -> Result<Option<Str
         client_secret,
     )?;
 
-    let token =
-        Token::get_token(&data.psql, guild, message.channel_id, "Mastodon", &client).await?;
+    let token = Token::get_token(&data.psql, guild, "Mastodon", &client).await?;
     let api = Mastodon::new(format!("https://{}", domain), Some(token.bearer), None);
 
     let text: String = message
