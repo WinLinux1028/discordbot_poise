@@ -58,13 +58,16 @@ impl Token {
     pub async fn get_token(
         psql: &PgPool,
         guild: serenity::GuildId,
+        channel: serenity::ChannelId,
         service: &str,
         client: &BasicClient,
     ) -> Result<Token, Error> {
         let guild_str = guild.0.to_string();
+        let channel_str = channel.0.to_string();
 
-        let mut token: Token = sqlx::query_as("SELECT domain, refresh, bearer, expires FROM sns_post WHERE guildid=$1 AND service=$2 LIMIT 1;")
+        let mut token: Token = sqlx::query_as("SELECT domain, refresh, bearer, expires FROM sns_post WHERE guildid=$1 AND channelid=$2 AND service=$3 LIMIT 1;")
             .bind(&guild_str)
+            .bind(&channel_str)
             .bind(service)
             .fetch_optional(psql)
             .await?
