@@ -13,8 +13,17 @@ use sqlx::{PgConnection, PgPool};
 impl Data {
     pub async fn sns_post(&self, message: &serenity::Message) -> bool {
         let mut flag = false;
-        flag |= twitter::post(self, message).await.is_ok();
-        flag |= mastodon::post(self, message).await.is_ok();
+
+        let mastodon = mastodon::post(self, message).await;
+        flag |= mastodon.is_ok();
+        let mastodon_url = match mastodon {
+            Ok(Some(u)) => Some(u),
+            _ => None,
+        };
+
+        flag |= twitter::post(self, message, mastodon_url.as_deref())
+            .await
+            .is_ok();
 
         flag
     }

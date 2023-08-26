@@ -4,14 +4,17 @@ use super::Token;
 use crate::{data::Data, Error};
 
 use megalodon::{
-    entities::UploadMedia, mastodon::Mastodon, megalodon::PostStatusInputOptions, Megalodon,
+    entities::UploadMedia,
+    mastodon::Mastodon,
+    megalodon::{PostStatusInputOptions, PostStatusOutput},
+    Megalodon,
 };
 use oauth2::{
     basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, RevocationUrl, TokenUrl,
 };
 use poise::serenity_prelude as serenity;
 
-pub async fn post(data: &Data, message: &serenity::Message) -> Result<(), Error> {
+pub async fn post(data: &Data, message: &serenity::Message) -> Result<Option<String>, Error> {
     let guild = message.guild_id.ok_or("")?;
 
     let (domain, client_id, client_secret): (String, String, String) =
@@ -46,9 +49,17 @@ pub async fn post(data: &Data, message: &serenity::Message) -> Result<(), Error>
         option.media_ids = Some(media_ids);
     }
 
-    api.post_status(text, Some(&option)).await?;
+    let toot = api.post_status(text, Some(&option)).await?;
+    let status = match toot.json {
+        PostStatusOutput::Status(s) => s,
+        _ => return Ok(None),
+    };
+    let url = match status.url {
+        Some(u) => u,
+        None => return Ok(None),
+    };
 
-    Ok(())
+    Ok(Some(url))
 }
 
 async fn get_media_ids(api: &impl Megalodon, message: &serenity::Message) -> Vec<String> {
